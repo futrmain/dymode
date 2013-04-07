@@ -17,7 +17,7 @@ namespace peigen
 	};
 
 	template <typename MatrixType>
-	ScaEigenSolve<MatrixType>::ScaEigenSolve<MatrixType>(SharedMatrix<MatrixType> A) : Hessenberg(A)
+	ScaEigenSolve<MatrixType>::ScaEigenSolve(SharedMatrix<MatrixType> A) : Hessenberg(A)
 	{
 		assert(A.rows() == A.cols() && "CALLING EIGEN SOLVER ON NON SQUARE MATRIX");
 

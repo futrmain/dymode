@@ -13,7 +13,7 @@ namespace peigen
 	};
 
 	template <typename MatrixType>
-	ScaSolve<MatrixType>::ScaSolve<MatrixType>(SharedMatrix<MatrixType> A, SharedMatrix<MatrixType> B) : matrixLU(A), solution(B) 
+	ScaSolve<MatrixType>::ScaSolve(SharedMatrix<MatrixType> A, SharedMatrix<MatrixType> B) : matrixLU(A), solution(B) 
 	{
 		assert((A.rblock() == A.cblock()) && "EIGEN SOLVER: 'A' must be distributed using a square block-cyclic distribution");
 		assert((A.rblock() == B.rblock()) && "EIGEN SOLVER: 'A' and 'B' must have the same row-block size");
