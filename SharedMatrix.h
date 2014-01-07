@@ -103,6 +103,14 @@ namespace peigen
 			return *this;
 		}
 
+		SharedMatrix<MatrixType> transposeInPlace() {
+			std::swap(x,y); 
+			std::swap(nrblock, ncblock);
+			std::swap(nrows, ncols);
+			local_matrix.transposeInPlace();
+			return *this;
+		}
+
 		SharedMatrix<MatrixType> & block(int bi, int bj, int bx, int by) 
 		{
 			//assert((((bi+bx) <= x)&&((by+bj) <= y)) && "Taking a block that is too large");
@@ -377,6 +385,7 @@ namespace peigen
 	{
 		if (BLACS::myrank==sink)
 		{
+			//cout << "the sink has started gathering" << endl;
 			// Create a matrix of buffer-matrices to receive into
 			Matrix<MatrixType, Dynamic, Dynamic> buffer(BLACS::grid_rows, BLACS::grid_cols);
 			for (int proc_row = 0; proc_row < BLACS::grid_rows; proc_row++)
@@ -390,7 +399,9 @@ namespace peigen
 						int n = BLACS::numroc_(&ncols, &ncblock, &proc_col, BLACS::iZERO, &(BLACS::grid_cols));
 
 						buffer(proc_row, proc_col).resize(m, n);
-						BLACS::COMM_ACTIVE.Recv(buffer(proc_row, proc_col).data(), m*n, MPIType(), pid, 1);
+						//cout << BLACS::myrank << " is receiving "<< m*n << " values." << endl;
+						if (m*n > 0)
+							BLACS::COMM_ACTIVE.Recv(buffer(proc_row, proc_col).data(), m*n, MPIType(), pid, 1);
 					}
 					else
 					{
@@ -398,7 +409,7 @@ namespace peigen
 					}
 				}
 			}
-
+			//cout << "is it OK here?"<<endl;
 			/* Reorder the block-cycliced buffer into the global matrix */
 			global_matrix.resize(nrows, ncols);
 
@@ -411,6 +422,9 @@ namespace peigen
 					coffset = ncblock * floor(cb / BLACS::grid_cols);
 					_nrows = min(nrblock, nrows-rb*nrblock);
 					_ncols = min(ncblock, ncols-cb*ncblock);
+
+					//cout << "rb-cb: " << rb<<"-"<<cb << ", nrblock-ncblock: " << nrblock<<"-"<<ncblock << ", _nrows-_ncols: " << _nrows<<"-"<<_ncols << ", roffset-coffset: " << roffset<<"-"<<coffset << endl;
+
 					global_matrix.block(rb*nrblock, cb*ncblock,  _nrows, _ncols) = 
 						buffer(rb%BLACS::grid_rows, cb%BLACS::grid_cols).block(roffset, coffset, _nrows, _ncols);
 				}
@@ -418,7 +432,10 @@ namespace peigen
 		}
 		else
 		{
-			BLACS::COMM_ACTIVE.Send(localData(), local_matrix.size(), MPIType(), sink, 1);
+			//cout << BLACS::myrank << " is sending "<< local_matrix.size() << "values." << endl;
+			if (local_matrix.size() > 0)
+				BLACS::COMM_ACTIVE.Send(localData(), local_matrix.size(), MPIType(), sink, 1);
+			//cout << BLACS::myrank << " has sent"<<endl;
 		}
 	}
 

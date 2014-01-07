@@ -31,6 +31,7 @@ namespace peigen
 		}
 
 		int ctxt, myrank, myrow, mycol, grid_rows, grid_cols, numproc; 
+		int myrowOrig, mycolOrig, grid_rowsOrig, grid_colsOrig; 
 		int rblock, cblock;
 		bool ROOT;
 		bool active;
@@ -57,18 +58,42 @@ namespace peigen
 
 			major = "R";	// the process grid will be row-major
 
-			/* Begin Cblas context */
-			/*grid_cols = floor(sqrt(numtasks));
-			grid_rows = floor(numtasks / grid_cols);*/
+			/* Begin Cblas context for the process grid */
+			/* Square pattern */
+			
+			//grid_cols = floor(sqrt(numtasks));
+			//grid_rows = floor(numtasks / grid_cols);
+			
+			
+			/* Column pattern for the process grid */
+			
+			//grid_cols = 4;
+			//grid_rows = floor(numtasks/4);
+
+			
+			
+			
+			/* Working for statistics */
 			grid_cols = 1;
 			grid_rows = numtasks;
+			
+			
+			
+			///cout << "we're here 1" << endl;
 
 			Cblacs_pinfo(&myrank, &numproc);
+
+			//cout << "we're there" << endl;
+
+
 			ROOT = (myrank == 0);
 			Cblacs_get(0, 0, &ctxt);	// get the system context
 
+			
+
 			Cblacs_gridinit(&ctxt, major.c_str(), grid_rows, grid_cols);
 				
+			
 
 			if (ROOT)
 				std::cout << "We are using " << grid_rows*grid_cols << " processes out of " << numtasks << 
@@ -86,6 +111,41 @@ namespace peigen
 				mycol = -1;
 			}
 			//std::cout << "(" << myrank << ") " << myrow << " x " << mycol << std::endl << std::flush;	
+		}
+		
+		void transpGrid()
+		{
+			int tmp = grid_cols;
+			grid_cols = grid_rows;
+			grid_rows = tmp;
+			
+			tmp = myrow;
+			myrow = mycol;
+			mycol = tmp;
+		}
+		
+		void rowify()
+		{
+			grid_colsOrig = grid_cols;
+			grid_rowsOrig = grid_rows;
+			
+			myrowOrig = myrow;
+			mycolOrig = mycol;
+			
+			grid_rows = 1;
+			grid_cols = grid_colsOrig * grid_rowsOrig;
+			
+			myrow = myrank;
+			mycol = 0;
+		}
+		
+		void unrowify()
+		{
+			grid_rows = grid_rowsOrig;
+			grid_cols = grid_colsOrig;
+			
+			myrow = myrowOrig;
+			mycol = mycolOrig;
 		}
 
 		void printGrid()
