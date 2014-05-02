@@ -1,3 +1,8 @@
+// DMD.cpp : Defines the entry point for the console application.
+//
+
+#include "stdafx.h"
+
 #include "mpi.h"
 
 #include <iostream>
@@ -23,13 +28,13 @@ using namespace peigen;
 using namespace phdfp;
 
 
-int main(int argc, char* argv[])
+int _tmain(int argc, _TCHAR* argv[])
 {
 	MPI::Init();
 	int rank, numtasks;
 	rank = MPI::COMM_WORLD.Get_rank();
 	numtasks = MPI::COMM_WORLD.Get_size();
-	bool ROOT = (rank==0);
+	bool ROOT = (rank == 0);
 
 	// create the BLACS grid
 	BLACS::init(numtasks);
@@ -41,23 +46,23 @@ int main(int argc, char* argv[])
 
 	if (BLACS::active)
 	{
-		
+
 		if (BLACS::ROOT)
 			std::cout << "BLACS Initialized." << endl << flush;
-		
+
 		//BLACS::printGrid();
 		prof.tic("Read");
 		if (BLACS::ROOT)
 			std::cout << "argv: " << argv[1] << endl << flush;
 		const int nfiles = boost::lexical_cast<int>(argv[1]);
 		const int nskip_step = boost::lexical_cast<int>(argv[2]);
-		
+
 		if (BLACS::ROOT)
 			std::cout << "Creating Reader" << endl << flush;
-		datasetreader dreader(nfiles, "Re350_oscillating", 71*nfiles/(BLACS::grid_cols * nskip_step),71*nfiles/(BLACS::grid_cols * nskip_step));
+		datasetreader dreader(nfiles, "Re350_oscillating", 71 * nfiles / (BLACS::grid_cols * nskip_step), 71 * nfiles / (BLACS::grid_cols * nskip_step));
 		if (BLACS::ROOT)
 			std::cout << "Datareader created." << endl << flush;
-		
+
 		dreader.getextents("snapshots_T");
 
 		//cout << "rows: " << dreader.rows() << ", cols: " << dreader.cols() << endl << flush;
@@ -89,16 +94,16 @@ int main(int argc, char* argv[])
 		///*-------------------------------------       DO AN SVD      -------------------------------------*/
 		///**************************************************************************************************/
 		prof.tic("SVD");
-		ScaSVD<MatrixXd> svd(snaps.block(0,0, 4*Np,Nt-1), true, true);
+		ScaSVD<MatrixXd> svd(snaps.block(0, 0, 4 * Np, Nt - 1), true, true);
 		snaps.clear();
 
-		if (BLACS::myrank==0)
+		if (BLACS::myrank == 0)
 			cout << "SVD done" << endl << flush;
-		
+
 
 		BLACS::COMM_ACTIVE.Barrier();
 		if (ROOT)
-			cout << "singular values on process " << rank << " are "   << svd.singularValues.transpose() << endl << flush;
+			cout << "singular values on process " << rank << " are " << svd.singularValues.transpose() << endl << flush;
 
 		/*if (ROOT)
 		cout << "HERE COMES U" << endl << flush;
@@ -131,12 +136,12 @@ int main(int argc, char* argv[])
 		cout << "HERE COMES S2" << endl << flush;
 		cout << S2 ;*/
 
-		
 
-		SharedMatrix<MatrixXd> tmpMat = svd.matrixU.transpose() * snaps.block(0,1, 4*Np,Nt-1);
+
+		SharedMatrix<MatrixXd> tmpMat = svd.matrixU.transpose() * snaps.block(0, 1, 4 * Np, Nt - 1);
 		snaps.clear();
 		SharedMatrix<MatrixXd> B = tmpMat * svd.matrixVt.transpose();
-		
+
 
 
 		svd.matrixU.clear();
@@ -150,16 +155,16 @@ int main(int argc, char* argv[])
 		//// and creating a shared matrix and multiplying is a pain. 
 		//// Since SIG+ is diagonal we do what it does: scale the columns of B by the propre value.
 		MatrixXd SIGplus = MatrixXd::Zero(B.local_matrix.cols(), B.local_matrix.cols());
-		double pinv_tol = std::numeric_limits<double>::epsilon() * (4*Np) * svd.singularValues(0);
+		double pinv_tol = std::numeric_limits<double>::epsilon() * (4 * Np) * svd.singularValues(0);
 		if (ROOT)
 		{
 			cout << " pinv_tol: " << pinv_tol << endl << flush;
 		}
-		for (int i=0; i < B.local_matrix.cols(); i++)
+		for (int i = 0; i < B.local_matrix.cols(); i++)
 		{
-			int index = i % B.cblock() + ( floor(i/B.cblock())*BLACS::grid_cols + BLACS::mycol ) * B.cblock();
-			if (svd.singularValues(index) > pinv_tol )
-				SIGplus(i,i) = 1 / svd.singularValues(index);
+			int index = i % B.cblock() + (floor(i / B.cblock())*BLACS::grid_cols + BLACS::mycol) * B.cblock();
+			if (svd.singularValues(index) > pinv_tol)
+				SIGplus(i, i) = 1 / svd.singularValues(index);
 		}
 
 		B.local_matrix = B.local_matrix * SIGplus;
@@ -184,18 +189,18 @@ int main(int argc, char* argv[])
 
 		// Matrix of eigen vectors
 		SharedMatrix<MatrixXcd> X;
-		MatrixXcd lambdas(Nt-1,1);
+		MatrixXcd lambdas(Nt - 1, 1);
 
 		// Driver routines for eigenproblems are only available in LAPACK, 
 		// so send the whole matrix to process 0 for seria lprocessing.
 		B.gather(0);
 
-		if(ROOT)
+		if (ROOT)
 		{
 			EigenSolver<MatrixXd> es(B.global_matrix, true);
 			X.global_matrix = es.eigenvectors();
 			lambdas = es.eigenvalues();
-			cout << "eigen values are computed "  <<endl << lambdas << endl << flush;
+			cout << "eigen values are computed " << endl << lambdas << endl << flush;
 		}
 
 		BLACS::COMM_ACTIVE.Bcast(lambdas.data(), lambdas.size(), MPI_DOUBLE_COMPLEX, 0);
@@ -203,8 +208,8 @@ int main(int argc, char* argv[])
 		X.dispatch(0, snaps.rblock(), snaps.rblock());	// The blocks must be square
 
 		/*if (ROOT)
-			cout << "HERE COMES X" << endl << flush;
-		cout << X;	*/ 
+		cout << "HERE COMES X" << endl << flush;
+		cout << X;	*/
 		prof.toc("EigenProblem");
 		///**************************************************************************************************/
 		///*------------------------------    /DO AN EIGENVECTOR SOLUTION     ------------------------------*/
@@ -218,13 +223,13 @@ int main(int argc, char* argv[])
 		///**************************************************************************************************/
 		prof.tic("LinearSolve");
 		//cout << "(" << BLACS::myrank << ")" << endl;
-		SharedMatrix<MatrixXd> rhs = svd.matrixU.transpose() * snaps.block(0,Nt-1, 4*Np,1);
+		SharedMatrix<MatrixXd> rhs = svd.matrixU.transpose() * snaps.block(0, Nt - 1, 4 * Np, 1);
 
 		BLACS::COMM_ACTIVE.Barrier();
 
 		if (ROOT)
 			cout << "rhs is computed" << endl << flush;
-		cout << rhs;	 
+		cout << rhs;
 
 		ScaSolve<MatrixXcd> solver(X, rhs.cast<std::complex<double> >());
 		if (ROOT)
@@ -240,7 +245,7 @@ int main(int argc, char* argv[])
 		}
 
 		if (ROOT)
-			cout << "Details for solution " << solver.solution.global_matrix.rows()<< endl << flush;
+			cout << "Details for solution " << solver.solution.global_matrix.rows() << endl << flush;
 		BLACS::COMM_ACTIVE.Barrier();
 
 		if (ROOT)
@@ -250,11 +255,11 @@ int main(int argc, char* argv[])
 
 
 		MatrixXcd weight = MatrixXcd::Zero(Modes.local_matrix.cols(), Modes.local_matrix.cols());
-		for (int i=0; i < Modes.local_matrix.cols(); i++)
+		for (int i = 0; i < Modes.local_matrix.cols(); i++)
 		{
-			int index = i % Modes.cblock() + ( floor(i/Modes.cblock())*BLACS::grid_cols + BLACS::mycol ) * Modes.cblock();
+			int index = i % Modes.cblock() + (floor(i / Modes.cblock())*BLACS::grid_cols + BLACS::mycol) * Modes.cblock();
 			//cout << "(" << BLACS::myrank << ")" << i << " " << index << endl;
-			weight(i,i) = solver.solution.global_matrix(index);
+			weight(i, i) = solver.solution.global_matrix(index);
 		}
 
 		//cout << "(" << BLACS::myrank << ")" << endl;
@@ -278,19 +283,19 @@ int main(int argc, char* argv[])
 		///*------------------------------      Compute the mode's energy      -----------------------------*/
 		///**************************************************************************************************/
 		prof.tic("Energy");
-		SharedMatrix<MatrixXd> amplitudes(1,Modes.cols(), 1,Modes.cblock());
+		SharedMatrix<MatrixXd> amplitudes(1, Modes.cols(), 1, Modes.cblock());
 
 		amplitudes.local_matrix = Modes.local_matrix.colwise().squaredNorm();
 
-		char scope[7] = {'C','O','L','U','M','N', '\0'};
-		char top[2] = {' ','\0'};
+		char scope[7] = { 'C', 'O', 'L', 'U', 'M', 'N', '\0' };
+		char top[2] = { ' ', '\0' };
 		// Sum the norm of columns by process column
-		BLACS::Cdgsum2d( BLACS::ctxt, scope, top, 1, amplitudes.local_matrix.cols(), amplitudes.localData(), 1, -1, -1 );
+		BLACS::Cdgsum2d(BLACS::ctxt, scope, top, 1, amplitudes.local_matrix.cols(), amplitudes.localData(), 1, -1, -1);
 
 		// cout the amplitudes
-		for(int rr = 0; rr<BLACS::grid_rows;rr++)
+		for (int rr = 0; rr<BLACS::grid_rows; rr++)
 		{
-			for(int cc = 0; cc<BLACS::grid_cols;cc++)
+			for (int cc = 0; cc<BLACS::grid_cols; cc++)
 			{
 				//if((BLACS::myrow==rr) && (BLACS::mycol==cc))
 				//cout << "(" << BLACS::myrow << ","<<BLACS::mycol << ") " << amplitudes.local_matrix << flush;
@@ -306,19 +311,19 @@ int main(int argc, char* argv[])
 		int ncols = Modes.cols();
 		int modes_cblock = Modes.cblock();
 		int offsetmpi = 0;
-		for(int cc = 0; cc<BLACS::grid_cols; cc++)
+		for (int cc = 0; cc<BLACS::grid_cols; cc++)
 		{
 			int n = BLACS::numroc_(&ncols, &modes_cblock, &cc, BLACS::iZERO, &(BLACS::grid_cols));
-			int pr = BLACS::Cblacs_pnum(BLACS::ctxt  , BLACS::myrow  , cc);
+			int pr = BLACS::Cblacs_pnum(BLACS::ctxt, BLACS::myrow, cc);
 			BLACS::COMM_ACTIVE.Irecv(amplitudes.globalData() + offsetmpi, n, MPI::DOUBLE, pr, pr);
 			//cout << BLACS::myrank <<" Irecv from " << pr << " for " << n << " values with offset"<<offsetmpi<<endl << flush;
 			offsetmpi += n;
 		}
 
 
-		for(int cc = 0; cc<BLACS::grid_cols;cc++)
+		for (int cc = 0; cc<BLACS::grid_cols; cc++)
 		{
-			int pr = BLACS::Cblacs_pnum(BLACS::ctxt  , BLACS::myrow  , cc);
+			int pr = BLACS::Cblacs_pnum(BLACS::ctxt, BLACS::myrow, cc);
 			BLACS::COMM_ACTIVE.Send(amplitudes.localData(), amplitudes.local_matrix.cols(), MPI::DOUBLE, pr, BLACS::myrank);
 			//cout << BLACS::myrank <<" send " << ampl << " to " << pr << " for " << ampl.cols() << " values"<<endl << flush;
 		}
@@ -334,10 +339,10 @@ int main(int argc, char* argv[])
 			cout << "amplitudes are done" << endl << flush;
 
 		/*for(int rr = 0; rr<BLACS::grid_rows*BLACS::grid_cols; rr++)*/
-		for(int rr = 0; rr<1; rr++)
+		for (int rr = 0; rr<1; rr++)
 		{
-			if(BLACS::myrank==rr) 
-				cout << "(" << BLACS::myrank  << ") " << amplitudes.global_matrix.transpose() << endl << flush;
+			if (BLACS::myrank == rr)
+				cout << "(" << BLACS::myrank << ") " << amplitudes.global_matrix.transpose() << endl << flush;
 			BLACS::COMM_ACTIVE.Barrier();
 		}
 		prof.toc("Energy");
@@ -361,10 +366,10 @@ int main(int argc, char* argv[])
 		int NMODES = 3;
 		MatrixXd::Index i_mode;
 
-		if ( ROOT )
+		if (ROOT)
 		{
-			cout << "(" << BLACS::myrank << ")"<<endl;
-			Matrix<double, Dynamic, 2, RowMajor> spectrum(Nt-1, 2);
+			cout << "(" << BLACS::myrank << ")" << endl;
+			Matrix<double, Dynamic, 2, RowMajor> spectrum(Nt - 1, 2);
 			spectrum.col(0) = lambdas.real().cwiseQuotient(lambdas.cwiseAbs()).array().acos().matrix();
 			spectrum.col(1) = amplitudes.global_matrix.row(0);
 
@@ -389,30 +394,30 @@ int main(int argc, char* argv[])
 			//hid_t memspace = H5Screate_simple(/*rank*/ 2, sel.count, NULL);
 
 			hid_t file = H5Fcreate(out_file.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-		//	hid_t dataset = H5Dcreate(file, "/spectrum", H5T_NATIVE_DOUBLE, filespace,
-		//				H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+			//	hid_t dataset = H5Dcreate(file, "/spectrum", H5T_NATIVE_DOUBLE, filespace,
+			//				H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-		//	herr_t status = H5Dwrite(dataset, H5T_NATIVE_DOUBLE, memspace, filespace,
-		//				H5P_DEFAULT, spectrum.data());
+			//	herr_t status = H5Dwrite(dataset, H5T_NATIVE_DOUBLE, memspace, filespace,
+			//				H5P_DEFAULT, spectrum.data());
 
-		//	H5Dclose(dataset);
+			//	H5Dclose(dataset);
 			H5Fclose(file);/*
-			H5Sclose(memspace);
-			H5Sclose(filespace);*/
+						   H5Sclose(memspace);
+						   H5Sclose(filespace);*/
 		}
 
 		for (int mode = 0; mode < NMODES; mode++)
 		{
 			amplitudes.global_matrix.row(0).maxCoeff(&i_mode);
 
-			while( lambdas(i_mode).imag() < 0 )
+			while (lambdas(i_mode).imag() < 0)
 			{
 				amplitudes.global_matrix(i_mode) = -1;
 				amplitudes.global_matrix.row(0).maxCoeff(&i_mode);
 			}
 			amplitudes.global_matrix(i_mode) = -1;
 
-			if (lambdas(i_mode).imag() >= 0 )
+			if (lambdas(i_mode).imag() >= 0)
 			{
 				//cout << rank<< " i_mode " << i_mode << endl <<flush;
 
@@ -426,7 +431,7 @@ int main(int argc, char* argv[])
 				{
 					hyperslab2D sel;
 					//cout << rank << " in "  << endl <<flush;
-					/* 
+					/*
 					* Set up file access property list with parallel I/O access
 					*/
 					hid_t plist_fa = H5Pcreate(H5P_FILE_ACCESS);
@@ -441,9 +446,9 @@ int main(int argc, char* argv[])
 					/*
 					* Create the dataspace for the dataset.
 					*/
-					sel.count[0] = 4*Np;
+					sel.count[0] = 4 * Np;
 					sel.count[1] = 2;
-					hid_t filespace = H5Screate_simple(2, sel.count, NULL); 
+					hid_t filespace = H5Screate_simple(2, sel.count, NULL);
 
 					/*
 					* Create the dataset with default properties and close filespace.
@@ -455,7 +460,7 @@ int main(int argc, char* argv[])
 						H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 					//H5Sclose(filespace);
 					//cout << rank<< " dataset created "  << endl <<flush;
-					/* 
+					/*
 					* Each process defines dataset in memory and writes it to the hyperslab
 					* in the file.
 					*/
@@ -481,11 +486,11 @@ int main(int argc, char* argv[])
 					H5Sselect_hyperslab(filespace, H5S_SELECT_SET, sel.offset, NULL, sel.count, NULL);
 
 
-					for (int r = 0; r < min(Modes.rblock(),(int)Modes.local_matrix.rows()); r++)
+					for (int r = 0; r < min(Modes.rblock(), (int)Modes.local_matrix.rows()); r++)
 					{
 						sel.stride[0] = Modes.rblock() * BLACS::grid_rows;
 						sel.stride[1] = 1;
-						sel.count[0] = ceil((double)(Modes.local_matrix.rows()-r)/Modes.rblock());
+						sel.count[0] = ceil((double)(Modes.local_matrix.rows() - r) / Modes.rblock());
 						sel.count[1] = 2;
 						sel.offset[0] = r + Modes.rblock() * BLACS::myrow;
 						sel.offset[1] = 0;
@@ -502,11 +507,11 @@ int main(int argc, char* argv[])
 					* Create property list for collective dataset write.
 					*/
 					MatrixXd CurrentMode(Modes.local_matrix.rows(), 2);
-					CurrentMode.col(0) = Modes.local_matrix.col(i_loc).cwiseAbs() ;
-					CurrentMode.col(1) = Modes.local_matrix.col(i_loc).imag().binaryExpr(Modes.local_matrix.col(i_loc).real(), std::ptr_fun(atan2<double, double>)) ;
+					CurrentMode.col(0) = Modes.local_matrix.col(i_loc).cwiseAbs();
+					CurrentMode.col(1) = Modes.local_matrix.col(i_loc).imag().binaryExpr(Modes.local_matrix.col(i_loc).real(), std::ptr_fun(atan2<double, double>));
 
 					/*if (ROOT)
-						cout << CurrentMode.block(0,0, 40, 2);*/
+					cout << CurrentMode.block(0,0, 40, 2);*/
 					if (ROOT)
 						cout << "Writing mode " << mode << "..." << endl;
 
@@ -537,11 +542,11 @@ int main(int argc, char* argv[])
 		///**************************************************************************************************/
 		///*------------------------------      /PRINT SOME MODES TO HDF5      -----------------------------*/
 		///**************************************************************************************************/
-		
+
 		stringstream profile_data;
 		profile_data << argv[0] << "-" << rank << ".yml";
-		
-		if(BLACS::myrank==0)
+
+		if (BLACS::myrank == 0)
 			prof.dump(profile_data.str());
 
 		BLACS::COMM_ACTIVE.Barrier();
@@ -554,6 +559,8 @@ int main(int argc, char* argv[])
 	if (ROOT)	// not having if(root) prevents segfault at the begining of the program (!?!)
 		cout << "DONE" << endl;
 
-	MPI::Finalize();		    
+	MPI::Finalize();
+
 	return 0;
 }
+
