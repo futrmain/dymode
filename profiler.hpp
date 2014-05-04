@@ -3,6 +3,7 @@
 
 #define BOOST_CHRONO_HEADER_ONLY
 #define BOOST_ERROR_CODE_HEADER_ONLY
+
 #define USE_PROFILER
 
 #include <map>

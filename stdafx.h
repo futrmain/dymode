@@ -5,7 +5,11 @@
 
 #pragma once
 
+#define DMD_WINDOWS_SOURCE
+
 #include "targetver.h"
+
+#include "mpi.h"
 
 #include <stdio.h>
 #include <tchar.h>
