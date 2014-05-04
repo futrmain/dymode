@@ -53,10 +53,12 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		//BLACS::printGrid();
 		prof.tic("Read");
-		if (BLACS::ROOT)
-			std::cout << "argv: " << argv[1] << endl << flush;
+		
 		const int nfiles = boost::lexical_cast<int>(argv[1]);
 		const int nskip_step = boost::lexical_cast<int>(argv[2]);
+
+		if (BLACS::ROOT)
+			std::cout << "argv: " << nfiles << endl << flush;
 
 		if (BLACS::ROOT)
 			std::cout << "Creating Reader" << endl << flush;
