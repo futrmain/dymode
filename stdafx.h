@@ -5,15 +5,36 @@
 
 #pragma once
 
-#define DMD_WINDOWS_SOURCE
 
+
+#define USE_PRECOMPILED_HEADER
+
+#ifdef USE_PRECOMPILED_HEADER
 #include "targetver.h"
 
 #include "mpi.h"
 
-#include <stdio.h>
-#include <tchar.h>
+
+#include <iostream>
+#include <fstream>
+
+#include <Eigen/Dense>
+#include "PBLAS.h"
+#include "BLACS.h"
 
 
+#include "boost/lexical_cast.hpp"
+
+#define USE_PROFILER
+#define USE_BOOST_CHRONO
+#include "tic-toc-profiler.hpp"
+
+
+
+
+//#include <stdio.h>
+//#include <tchar.h>
+
+#endif
 
 // TODO: reference additional headers your program requires here
