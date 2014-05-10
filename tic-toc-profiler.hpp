@@ -102,16 +102,32 @@ class DoProfiler
 			child = (*child)[key].subEvents;
 			(*parent)[key].tic_time = thischrono::high_resolution_clock::now();
 		}
-		void toc(string key)
+		
+		double toc(string key)
 		{
-
 			(*parent)[key].toc_time = thischrono::high_resolution_clock::now();
-			(*parent)[key].samples.push_back(((*parent)[key].toc_time - (*parent)[key].tic_time).count() * factor);
+			double sample = ((*parent)[key].toc_time - (*parent)[key].tic_time).count() * factor;
+			(*parent)[key].samples.push_back(sample);
 			//cout << ((*parent)[key].toc_time - (*parent)[key].tic_time).count() << " " << (double)boost::chrono::steady_clock::period::num/boost::chrono::steady_clock::period::den  << endl;
 			child = parent;
 			parent = (*parent)[key].up;
 
+			return sample;
 		}
+		
+		double toc(string key, string text)
+		{
+			(*parent)[key].toc_time = thischrono::high_resolution_clock::now();
+			double sample = ((*parent)[key].toc_time - (*parent)[key].tic_time).count() * factor;
+			(*parent)[key].samples.push_back(sample);
+			//cout << ((*parent)[key].toc_time - (*parent)[key].tic_time).count() << " " << (double)boost::chrono::steady_clock::period::num/boost::chrono::steady_clock::period::den  << endl;
+			child = parent;
+			parent = (*parent)[key].up;
+
+			cout << text << sample << endl;
+			return sample;
+		}
+		
 		void dump();
 		
 		void dump(string fname);
@@ -130,7 +146,7 @@ class NoProfiler
 		NoProfiler(string) {};
 
 		void tic(string) {};
-		void toc(string) {};
+		double toc(string) {};
 		void dump() {};
 		void dump(string) {};
 };
