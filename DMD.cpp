@@ -19,6 +19,7 @@
 #include "BLACS.h"
 
 #define USE_PROFILER
+#define USE_BOOST_CHRONO
 #include "tic-toc-profiler.hpp"
 
 #endif
@@ -27,7 +28,7 @@
 
 #include "SharedMatrix.h"
 #include "ScaSVD.h"
-#include "PH5data.h"
+#include "H5inDMD.h"
 #include "ScaSolve.h"
 #include "ScaEigenSolve.h"
 
@@ -46,35 +47,60 @@ int main(int argc, char* argv[])
 	numtasks = MPI::COMM_WORLD.Get_size();
 	bool ROOT = (rank == 0);
 
-	// create the BLACS grid
+	DoProfiler prof;
+
+	// Create the BLACS grid
 	BLACS::init(numtasks);
+	if (BLACS::ROOT)
+		std::cout << "BLACS Initialized." << endl << flush;
+	//BLACS::printGrid();
+
+	MPI::COMM_WORLD.Barrier(); // For printing purposes
+
+	// Input arguments
+	const int nfiles = boost::lexical_cast<int>(argv[1]);
+	const int nskip_step = boost::lexical_cast<int>(argv[2]);
+
+	if (BLACS::ROOT)
+	{
+		std::cout << "Input arguments: " << nfiles << ", " << nskip_step << endl << flush;
+	}
+		
+
+	
+	// Use all the processes for faster IO, regardless of them being used in the process grid
+	prof.tic("Read");
+	if (BLACS::ROOT)
+		std::cout << "Creating Reader" << endl << flush;
+
+	datasetreader dreader(nfiles, "../../../Re350_oscillating");
+	if (BLACS::ROOT)
+		std::cout << "Datareader created." << endl << flush;
+
+	MPI::COMM_WORLD.Barrier(); // For printing purposes
+	
+	dreader.read("snapshots_T");
+
+	MPI::COMM_WORLD.Barrier(); // For printing purposes
+
+	dreader.createShared(5, 5);
+
+
+	MPI::COMM_WORLD.Barrier(); // For printing purposes
+
+
+	//std::cout << "From the return value: " << prof.toc("Read") << endl << flush;
+	prof.toc("Read", "The time Reading took is: ");
+
+	
 
 	// Discard inactive processes immediately, this is to avoid crashes caused e.g. by inactive process calling barrier(ctxt, All), or descinit()
 	// Note: If needed, use the MPI::Intracomm BLACS::COMM_ACTIVE to avoid deadlocks with incative processes
-
-	DoProfiler prof;
-
-	if (BLACS::active)
+	if (BLACS::active) // Only processes that have a place in the grid
 	{
-		prof.tic("Read");
-		if (BLACS::ROOT)
-			std::cout << "BLACS Innitialized." << endl << flush;
 
-		//BLACS::printGrid();
+		//
 		
-		
-		const int nfiles = boost::lexical_cast<int>(argv[1]);
-		const int nskip_step = boost::lexical_cast<int>(argv[2]);
-
-		if (BLACS::ROOT)
-			std::cout << "argv: " << nfiles << endl << flush;
-		prof.toc("Read");
-		//if (BLACS::ROOT)
-		//	std::cout << "Creating Reader" << endl << flush;
-		//datasetreader dreader(nfiles, "Re350_oscillating", 71 * nfiles / (BLACS::grid_cols * nskip_step), 71 * nfiles / (BLACS::grid_cols * nskip_step));
-		//if (BLACS::ROOT)
-		//	std::cout << "Datareader created." << endl << flush;
-
 		//dreader.getextents("snapshots_T");
 
 		////cout << "rows: " << dreader.rows() << ", cols: " << dreader.cols() << endl << flush;
@@ -89,7 +115,7 @@ int main(int argc, char* argv[])
 		//SharedMatrix<MatrixXd> snaps = dreader.datamat;
 		//prof.toc("Read");
 
-		////cout << snaps;
+		//cout << snaps;
 
 		///**************************************************************************************************/
 		///*-------------------------------------     START OF DMD     -------------------------------------*/
