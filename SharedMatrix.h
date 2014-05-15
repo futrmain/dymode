@@ -209,14 +209,27 @@ namespace peigen
 
 		switch (init)
 		{
-		case 'o':
+		case 'o':	//ones
 			local_matrix = MatrixType::Ones(m, n);
 			break;
-		case 'z':
+		case 'z':	//zeros
 			local_matrix = MatrixType::Zero(m, n);
 			break;
-		case 'p':
+		case 'p':	//process id
 			local_matrix = MatrixType::Ones(m, n) * BLACS::myrank;
+			break;
+		case 'r':	//random
+			local_matrix = MatrixType::Random(m, n);
+			break;
+		case 'i':	//identity
+			local_matrix = MatrixType::Zero(m, n);
+			for (int k=0; k < min(global_M, global_N); ++k)
+			{
+				if ((BLACS::myrow == BLACS::indxg2p(k, rBlockSize, BLACS::grid_rows)) && (BLACS::mycol == BLACS::indxg2p(k, cBlockSize, BLACS::grid_cols)))
+					{
+					local_matrix(BLACS::indxg2l(k, rBlockSize, BLACS::grid_rows), BLACS::indxg2l(k, cBlockSize, BLACS::grid_cols)) = 1;
+					}				
+			}
 			break;
 		}
 

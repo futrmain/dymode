@@ -24,8 +24,8 @@ namespace peigen
 
 		std::copy(matrixLU.descriptor(), matrixLU.descriptor()+9, desc);
 
-		A.printDetails();
-		B.printDetails();
+		//A.printDetails();
+		//B.printDetails();
 
 		int info;
 		PBLAS::pxgesv(matrixLU.x, solution.cols(), 
