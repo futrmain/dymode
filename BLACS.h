@@ -32,7 +32,7 @@ namespace peigen
 
 			inline int indxg2l(int gidx, int sblock, int nprocs)
 			{
-				return sblock*floor((gidx-1) / (sblock*nprocs)) + gidx % sblock;
+				return sblock*floor(gidx / (sblock*nprocs)) + gidx % sblock;
 			}
 			
 			
