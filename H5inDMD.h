@@ -27,12 +27,12 @@ namespace phdfp
 	public:
 		Matrix<double, Dynamic, Dynamic> input_data;
 		
-		hsize_t virtual_dims[2];
+		int virtual_dims[2];
 		int nfiles;	// NOTE!!nfiles should be places before firstname because it needs to have been initialized when firstname is initializing 
 		string rootname;
 		string firstname;
 
-		Matrix<Matrix<int, 1, Dynamic>, Dynamic, 1> snapshots_per_file;
+		Matrix<Matrix<int, 1, Dynamic>, Dynamic, 1> snapshots_per_process;
 
 		// Constructor
 		datasetreader(string fname) : firstname(fname), nfiles(1) 
@@ -41,7 +41,7 @@ namespace phdfp
 		datasetreader(int num_files, string root_name) : nfiles(num_files), rootname(root_name), firstname(filename(1))
 		{
 			//cout << BLACS::myrank << " will resize snapshots_per_file " << BLACS::numproc << "x" << 1 << "" << endl;
-			snapshots_per_file.resize(BLACS::numproc, 1);
+			snapshots_per_process.resize(BLACS::numproc, 1);
 		}
 
 		// Destructor
@@ -60,7 +60,7 @@ namespace phdfp
 		void read(string dataset_name);
 		void getextents(string fname, string dataset_name, hsize_t * dims);
 
-		void createShared(int rblock, int cblock);
+		peigen::SharedMatrix<MatrixXd> createShared(int rblock, int cblock, int nskip = 1);
 	};
 
 
@@ -82,44 +82,51 @@ namespace phdfp
 	void datasetreader::read(string dataset_name)
 	{
 		// Step 0: Figure out how many files for each process
-		for (int proc = 0; proc < nfiles % BLACS::numproc; ++proc)
+		int my_num_files = floor(nfiles / BLACS::numproc);
+
+		if (BLACS::myrank < nfiles % BLACS::numproc)
 		{
-			//cout << BLACS::myrank << " ahah " << proc << " will resize " << 1 << "x" << floor(nfiles / BLACS::numproc) + 1 << "" << endl;
-			snapshots_per_file(proc).resize(1, floor(nfiles / BLACS::numproc) + 1); 
-		}
-		for (int proc = nfiles % BLACS::numproc; proc < BLACS::numproc; ++proc)
-		{
-			//cout << BLACS::myrank << " and " << proc << " will resize " << 1 << "x" << floor(nfiles / BLACS::numproc) << "" << endl;
-			snapshots_per_file(proc).resize(1, floor(nfiles / BLACS::numproc));
+			++my_num_files;
 		}
 
+		
 		// Step 1: Figure out how much data will be read by this process
 		int dimension_r = 0;
 		int dimension_c = 0;
 
+		MatrixXi snapshots_per_file(my_num_files, 1);
+
 		
-		for (int k = 0; k < snapshots_per_file(BLACS::myrank).size(); ++k)
+		for (int f = 0; f < my_num_files; ++f)
 		{
-			int filenum = BLACS::myrank + 1 + k * BLACS::numproc;
+			int filenum = BLACS::myrank * floor(nfiles / BLACS::numproc) + min(BLACS::myrank, nfiles % BLACS::numproc) + f +1;
 			string fname = filename(filenum);
+			
 			
 			hsize_t dims[2];
 			getextents(fname, dataset_name, dims);
 
 			assert(((dimension_r == 0) || (dimension_r == dims[1])) && "NUMBER OF ROWS MISMATCH FROM ONE FILE TO ANOTHER");
+			
+			snapshots_per_file(f, 0) = dims[0];
+			dimension_c += dims[0];
 			dimension_r = dims[1];
-			snapshots_per_file(BLACS::myrank)(k) = dims[0];
+			//cout << BLACS::myrank << " reads " << dimension_c << endl;
 		}
+		virtual_dims[0] = dimension_r;
+		
 
 		// Step 2: Allocate the memory
-		input_data.resize(dimension_r, snapshots_per_file(BLACS::myrank, 0).sum());
+		snapshots_per_process(BLACS::myrank, 0).resize(1,dimension_c);
+		input_data.resize(dimension_r, dimension_c);
 
 		cout << BLACS::myrank << " will read " << input_data.rows() << "x" << input_data.cols() << "data" << endl;
 
-		// Step 3: Read
+		//// Step 3: Read
+		/*Note: From here the dimensions are switched to account for the fact that data is stored transposed on disk*/
 		size_t dims[2];
-		dims[0] = input_data.rows();
-		dims[1] = input_data.cols();
+		dims[1] = input_data.rows();
+		dims[0] = input_data.cols();
 		hsize_t virtual_filespace = H5Screate_simple(/*rank*/ 2, dims, NULL);
 
 		hyperslab2D sel;
@@ -129,13 +136,13 @@ namespace phdfp
 		sel.stride[1] = 1;
 		sel.count[0] = 1;
 		sel.count[1] = 1;
-		for (int k = 0; k < snapshots_per_file(BLACS::myrank).size(); ++k)
+		for (int f = 0; f < my_num_files; ++f)
 		{
-			sel.block[0] = input_data.rows();
-			sel.block[1] = snapshots_per_file(BLACS::myrank)(k);
+			sel.block[1] = input_data.rows();
+			sel.block[0] = snapshots_per_file(f,0);
 			H5Sselect_hyperslab(virtual_filespace, H5S_SELECT_SET, sel.offset, sel.stride, sel.count, sel.block);
 
-			int filenum = BLACS::myrank + 1 + k * BLACS::numproc;
+			int filenum = BLACS::myrank * floor(nfiles / BLACS::numproc) + min(BLACS::myrank, nfiles % BLACS::numproc) + f + 1;
 			string fname = filename(filenum);
 			//cout << fname << endl << flush;
 
@@ -147,15 +154,22 @@ namespace phdfp
 
 			H5Dclose(dataset);
 			H5Fclose(file);
-			sel.offset[1] += sel.block[1];
+			sel.offset[0] += sel.block[0];
 		}
 		H5Sclose(virtual_filespace);
 
-		// Step 4: Exchange how many snapshots in each file
+		// Step 4: Exchange how many snapshots for each process
 		for (int proc = 0; proc < BLACS::numproc; ++proc)
 		{
-			MPI::COMM_WORLD.Bcast(snapshots_per_file(proc).data(), snapshots_per_file(proc).size(), MPI::DOUBLE, proc);
+			int n_snaps = snapshots_per_process(proc, 0).size();
+			MPI::COMM_WORLD.Bcast(&n_snaps, 1, MPI::INT, proc);
+			snapshots_per_process(proc, 0).resize(n_snaps);
 		}
+
+		// Step 5: Broadcast the number of rows for processes that don't have any file to open
+		// It is assumed that at least proc 0 has a file to read...
+		MPI::COMM_WORLD.Bcast(virtual_dims, 1, MPI::INT, 0);
+
 		/*if (BLACS::myrank == 2)
 		{
 			for (int proc = 0; proc < BLACS::numproc; ++proc)
@@ -164,72 +178,165 @@ namespace phdfp
 			
 	}
 
-
-	void datasetreader::createShared(int rblock, int cblock)
+	
+	peigen::SharedMatrix<MatrixXd> datasetreader::createShared(int rblock, int cblock, int nskip)
 	{
-		// Step 1: Figure out the global index of all mmy columns
-		MatrixXi global_indices(1,input_data.cols());
+		// Step 1: Figure out the global index of all my snapshots
 		int i_glob = 0;
-		int i_loc = 0;
 
-		//cout << ceil((float)nfiles / BLACS::numproc) << endl;
-		for (int f = 0; f < floor(nfiles / BLACS::numproc); ++f)
+		for (int p = 0; p < BLACS::numproc; ++p)
 		{
-			for (int p = 0; p < BLACS::myrank; ++p)
+			for (int c = 0; c < snapshots_per_process(p, 0).size(); ++c)
 			{
-				i_glob += snapshots_per_file(p, 0)(0, f);
+				// If the column should be read, tag it with a virtual global index
+				if (i_glob % nskip == 0)
+				{
+					snapshots_per_process(p, 0)(0, c) = floor(i_glob / nskip);
+				}
+				// If it shouldn't be in the SharedMatrix, tag it with -1
+				else
+				{
+					snapshots_per_process(p, 0)(0, c) = -1;
+				}
+				i_glob++;
 			}
-
-			for (int c = 0; c < snapshots_per_file(BLACS::myrank, 0)(0, f); ++c)
-			{
-				global_indices(0, i_loc + c) = i_glob;
-				++i_glob;
-			}
-			i_loc += snapshots_per_file(BLACS::myrank, 0)(0, f);
-
-			for (int p = BLACS::myrank + 1; p < BLACS::numproc; ++p)
-			{
-				i_glob += snapshots_per_file(p, 0)(0, f);
-			}
+			//cout << BLACS::myrank << " showing for proc " << p << ": " << snapshots_per_process(p, 0) << endl << endl << endl;
 		}
 
-		for (int proc = 0; proc < nfiles % BLACS::numproc; ++proc)
-		{
-			if (proc == BLACS::myrank)
-			{
-				for (int c = 0; c < snapshots_per_file(BLACS::myrank, 0)(0, ceil((float)nfiles / BLACS::numproc)-1); ++c)
-				{
-					global_indices(0, i_loc + c) = i_glob;
-					++i_glob;
-				}
-			}
-			i_glob += snapshots_per_file(proc, 0)(0, ceil((float)nfiles / BLACS::numproc)-1);
-		}
 
-			/*for (int c = 0; c < snapshots_per_file(BLACS::myrank,0)(0,f); ++c)
-			{
-				if (snapshots_per_file(BLACS::myrank, 0).size() > f)
-				{
-					global_indices(0, i_loc + c) = i_glob;
-					++i_glob;
-				}
-			}
-			i_loc += snapshots_per_file(BLACS::myrank,0)(0,f);
-
-			for (int p = BLACS::myrank+1; p < BLACS::numproc; ++p)
-			{
-				if (snapshots_per_file(p,0).size() > f)
-				{
-					i_glob += snapshots_per_file(p,0)(0,f);
-				}
-			}*/
+		// Step 2: Prepare send buffer
+		Matrix<Matrix<double, Dynamic, Dynamic>, Dynamic, Dynamic> SendBuff(BLACS::grid_rows, BLACS::grid_cols);
 		
 
-		cout << BLACS::myrank << " " << global_indices << endl << endl << endl;
+		// Step 2.1: Figure out the size of each buffer
+		MatrixXi cols2send = MatrixXi::Zero(1, BLACS::grid_cols);
+		for (int c = 0; c < snapshots_per_process(BLACS::myrank, 0).size(); ++c)
+		{
+			int global_index = snapshots_per_process(BLACS::myrank, 0)(0, c);
+			if (global_index >= 0)
+			{
+				cols2send(0, BLACS::indxg2p(global_index, cblock, BLACS::grid_cols))++;
+			}
+		}
+		//cout << BLACS::myrank << " cols2send " << cols2send << endl;
+
+		//MatrixXi rows2send = MatrixXi::Zero(BLACS::grid_rows, 1);
+		Matrix<Matrix<int, 2, 1>, Dynamic, Dynamic> offsets(BLACS::grid_rows, BLACS::grid_cols);
+		for (int r = 0; r < BLACS::grid_rows; ++r)
+		{
+			int rows2send = BLACS::numroc_(virtual_dims, &rblock, &r, BLACS::iZERO, &(BLACS::grid_rows));
+			for (int pcol = 0; pcol < BLACS::grid_cols; ++pcol)
+			{
+				SendBuff(r, pcol).resize(rows2send, cols2send(0, pcol));
+				offsets(r, pcol) = Matrix<int, 2, 1>::Zero();
+			}
+		}
 
 
+		// Step 2.2: Fill the Send buffers
+
+		for (int c = 0; c < snapshots_per_process(BLACS::myrank, 0).size(); ++c)
+		{
+			int global_index = snapshots_per_process(BLACS::myrank, 0)(0, c);
+			if (global_index >= 0)
+			{
+				int pcol = BLACS::indxg2p(global_index, cblock, BLACS::grid_cols);
+				int n_full_blocks = floor(virtual_dims[0] / rblock);
+
+				for (int block = 0; block < n_full_blocks; ++block)
+				{
+					SendBuff(block % BLACS::grid_rows, pcol).block(offsets(block % BLACS::grid_rows, pcol)(0, 0), offsets(block % BLACS::grid_rows, pcol)(1, 0), rblock, 1)
+						= input_data.block(block*rblock, c, rblock, 1);
+
+					offsets(block % BLACS::grid_rows, pcol)(0, 0) += rblock;
+				}
+
+				SendBuff(n_full_blocks % BLACS::grid_rows, pcol).block(offsets(n_full_blocks % BLACS::grid_rows, pcol)(0, 0), offsets(n_full_blocks % BLACS::grid_rows, pcol)(1, 0), virtual_dims[0] % rblock, 1)
+					= input_data.block(n_full_blocks*rblock, c, virtual_dims[0] % rblock, 1);
+
+				// Next column for offsets
+				for (int r = 0; r < BLACS::grid_rows; ++r)
+				{
+					offsets(r, pcol)(0, 0) = 0;
+					offsets(r, pcol)(1, 0)++;
+				}
+			}
+		}
+
+		
+		
+		
+
+		// Step 2.3: Clear source data to save space
+		input_data.resize(0, 0);
+
+		/*
+		for (int rank = 0; rank < BLACS::numproc; ++rank)
+		{
+			if (BLACS::myrank == rank)
+			{
+				//cout << "The send buffers on " << peigen::BLACS::myrank << " are " << endl;
+				for (int prow = 0; prow < BLACS::grid_rows; ++prow)
+				{
+					for (int pcol = 0; pcol < BLACS::grid_cols; ++pcol)
+					{
+						cout << prow << "x" << pcol << endl << SendBuff(prow, pcol) << endl << endl;
+					}
+				}
+			}
+			MPI::COMM_WORLD.Barrier();
+		}
+		*/
+
+		// Step 3: Create the SharedMatrix, will be the receive buffer
+		peigen::SharedMatrix<MatrixXd> S(virtual_dims[0], ceil((float)i_glob/nskip), rblock, cblock);
+		//S.printDetails();
+		//cout << BLACS::myrank << " i_glob " << i_glob << endl;
+
+		//cout << "The shared Matrix BEFORE on " << peigen::BLACS::myrank << " is " << endl << S.local_matrix << endl;
+
+		// Step 4: Prepare to receive into the Shared Matrix
+		int offset = 0;
+		for (int p = 0; p < BLACS::numproc; ++p)
+		{
+			//How many snapshots will I receive from p?
+			int nsnaps_from_p = 0;
+			for (int s = 0; s < snapshots_per_process(p, 0).size(); ++s)
+			{
+				if (snapshots_per_process(p, 0)(0, s) >= 0)
+				{
+					int virtualGlobalIndex = snapshots_per_process(p, 0)(0, s);
+					if (BLACS::indxg2p(virtualGlobalIndex, cblock, BLACS::grid_cols) == BLACS::mycol)
+					{
+						nsnaps_from_p += 1;
+					}
+				}
+			}
+			//cout << BLACS::myrank << " receive from " << p << " this many columns: " << nsnaps_from_p << endl;
+			MPI::COMM_WORLD.Irecv(S.localData() + offset * S.local_matrix.rows(), S.local_matrix.rows() * nsnaps_from_p, MPI::DOUBLE, p, p);
+			offset += nsnaps_from_p;
+		}
+
+		MPI::COMM_WORLD.Barrier();
+
+		// Step 5: Send the data to everyone
+		for (int prow = 0; prow < BLACS::grid_rows; ++prow)
+		{
+			for (int pcol = 0; pcol < BLACS::grid_cols; ++pcol)
+			{
+				int dest = BLACS::Cblacs_pnum(BLACS::ctxt, prow, pcol);
+				MPI::COMM_WORLD.Send(SendBuff(prow, pcol).data(), SendBuff(prow, pcol).size(), MPI::DOUBLE, dest, BLACS::myrank);
+			}
+		}
+
+		MPI::COMM_WORLD.Barrier();
+
+		//(const void* buf, int count, const Datatype& datatype, int dest, int tag) const; 
+		//BLACS::COMM_ACTIVE.Recv(localData(), local_matrix.size(), MPIType(), source, 1);
+
+		return S;
 	}
-
+	
 
 }	// end namespace phdfp
 #endif // H5INDMD_H
