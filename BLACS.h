@@ -1,5 +1,11 @@
+#pragma once
 #ifndef PEIGEN_BLACS_H
 #define PEIGEN_BLACS_H
+
+#ifdef _WIN32 /* Win32 or Win64 environment */
+#define numroc_ NUMROC
+#define descinit_ DESCINIT
+#endif 
 
 namespace peigen
 {
@@ -20,6 +26,27 @@ namespace peigen
 			int Cblacs_pnum(int , int , int);
 
 			int numroc_(int*, int*, int*, int*, int*);
+			void chk1mat_(const int*, const int*, const int*, const int*, const int*, const int*, int*, const int*, int*);
+			void pchk2mat_(const int*, const int*, const int*, const int*, const int*, const int*, int*, const int*, const int*, const int*, const int*, const int*, const int*, const int*, int*, const int*, const int*, int*, const int*,  int*);
+
+
+			inline int indxg2l(int gidx, int sblock, int nprocs)
+			{
+				return sblock*floor((gidx-1) / (sblock*nprocs)) + gidx % sblock;
+			}
+			
+			
+			inline int indxl2g(int lidx, int sblock, int nprocs, int iproc)
+			{
+				return nprocs*sblock*(lidx/sblock) + lidx%sblock +  ((nprocs+iproc-0) % nprocs)*sblock ;
+			}
+
+			inline int indxg2p(int gidx, int sblock, int nprocs)
+			{
+				// FIXME: should be "isrc + (gidx/sblock) % nprocs"
+				// with isrc The coordinate of the process that possesses the first row / column of the distributed matrix.
+				return (gidx/sblock) % nprocs;
+			}
 
 			void pdpotrf_(char*, int*, double*,
 				int*, int*, int*, int*);
@@ -40,17 +67,18 @@ namespace peigen
 		MPI::Intracomm COMM_ACTIVE;
 
 		// Constants that can be passed to stupid FORTRAN by reference
-		int izero = 0;
+		extern int izero = 0;
 		int ione = 1;
-		double dzero = 0;
+		double dzero = 0.;
 		double done = 1;
-		int *iZERO = &izero; 
-		int *iONE = &ione; 
-		double *dONE = &done;
-		double *dZERO = &dzero;
+
+		int *iZERO ;
+		int *iONE ; 
+		double *dONE ;
+		double *dZERO ;
 
 
-		void init(int numtasks)
+		inline void init(int numtasks)
 		{
 			// default blocking factors, so that all matrices within this context can fall back to a common default size
 			rblock = 3;
@@ -61,8 +89,8 @@ namespace peigen
 			/* Begin Cblas context for the process grid */
 			/* Square pattern */
 			
-			//grid_cols = floor(sqrt(numtasks));
-			//grid_rows = floor(numtasks / grid_cols);
+			grid_cols = floor(sqrt(numtasks));
+			grid_rows = floor(numtasks / grid_cols);
 			
 			
 			/* Column pattern for the process grid */
@@ -70,12 +98,22 @@ namespace peigen
 			//grid_cols = 4;
 			//grid_rows = floor(numtasks/4);
 
-			
+			iZERO = new int;
+			*iZERO = 0;
+
+			iONE = new int;
+			*iONE = 1;
+
+			dZERO = new double;
+			*dZERO = 0;
+
+			dONE = new double;
+			*dONE = 1;
 			
 			
 			/* Working for statistics */
-			grid_cols = 1;
-			grid_rows = numtasks;
+			//grid_cols = 1;
+			//grid_rows = numtasks;
 			
 			
 			
@@ -113,7 +151,7 @@ namespace peigen
 			//std::cout << "(" << myrank << ") " << myrow << " x " << mycol << std::endl << std::flush;	
 		}
 		
-		void transpGrid()
+		inline void transpGrid()
 		{
 			int tmp = grid_cols;
 			grid_cols = grid_rows;
@@ -124,7 +162,7 @@ namespace peigen
 			mycol = tmp;
 		}
 		
-		void rowify()
+		inline void rowify()
 		{
 			grid_colsOrig = grid_cols;
 			grid_rowsOrig = grid_rows;
@@ -139,7 +177,7 @@ namespace peigen
 			mycol = 0;
 		}
 		
-		void unrowify()
+		inline void unrowify()
 		{
 			grid_rows = grid_rowsOrig;
 			grid_cols = grid_colsOrig;
@@ -148,7 +186,7 @@ namespace peigen
 			mycol = mycolOrig;
 		}
 
-		void printGrid()
+		inline void printGrid()
 		{
 			using namespace std;
 
