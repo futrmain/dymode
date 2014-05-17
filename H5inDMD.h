@@ -64,7 +64,7 @@ namespace phdfp
 	};
 
 
-	void datasetreader::getextents(string fname, string dataset_name, hsize_t * dims)
+	inline void datasetreader::getextents(string fname, string dataset_name, hsize_t * dims)
 	{
 		hid_t file = H5Fopen(fname.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
 
@@ -79,7 +79,7 @@ namespace phdfp
 		H5Fclose(file);
 	}
 
-	void datasetreader::read(string dataset_name)
+	inline void datasetreader::read(string dataset_name)
 	{
 		// Step 0: Figure out how many files for each process
 		int my_num_files = floor(nfiles / BLACS::numproc);
@@ -179,7 +179,7 @@ namespace phdfp
 	}
 
 	
-	peigen::SharedMatrix<MatrixXd> datasetreader::createShared(int rblock, int cblock, int nskip)
+	inline peigen::SharedMatrix<MatrixXd> datasetreader::createShared(int rblock, int cblock, int nskip)
 	{
 		// Step 1: Figure out the global index of all my snapshots
 		int i_glob = 0;
@@ -334,6 +334,7 @@ namespace phdfp
 		//(const void* buf, int count, const Datatype& datatype, int dest, int tag) const; 
 		//BLACS::COMM_ACTIVE.Recv(localData(), local_matrix.size(), MPIType(), source, 1);
 
+		//S.printDetails();
 		return S;
 	}
 	

@@ -18,6 +18,8 @@
 #include "PBLAS.h"
 #include "BLACS.h"
 
+#include "H5inDMD.h"
+
 #define USE_PROFILER
 #define USE_BOOST_CHRONO
 #include "tic-toc-profiler.hpp"
@@ -28,7 +30,7 @@
 
 #include "SharedMatrix.h"
 #include "ScaSVD.h"
-#include "H5inDMD.h"
+
 #include "ScaSolve.h"
 #include "ScaEigenSolve.h"
 
