@@ -143,10 +143,12 @@ class NoProfiler
 	public:
 		double factor;
 		map<string, event> root;
+		NoProfiler() {};
 		NoProfiler(string) {};
 
 		void tic(string) {};
-		double toc(string) {};
+		inline double toc(string) { return -1; };
+		inline double toc(string, string) { return -1; };
 		void dump() {};
 		void dump(string) {};
 };
