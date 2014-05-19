@@ -28,15 +28,18 @@ namespace peigen
 
 		int nvals = min(M.x, M.y);
 
-		singularValues.resize(nvals, 1);
+		//singularValues.resize(nvals, 1);
+		singularValues = MatrixType::Zero(nvals, 1);
 
 		if (computeU)
-			matrixU.resize(M.x, nvals, M.rblock(), M.cblock());
+			//matrixU.resize(M.x, nvals, M.rblock(), M.cblock());
+			matrixU = SharedMatrix<MatrixType>(M.x, nvals, 'z', M.rblock(), M.cblock());
 		else
 			matrixU.resize(0, 0);
 
 		if (computeVt)
-			matrixVt.resize(nvals, M.y, M.rblock(), M.cblock());
+			//matrixVt.resize(nvals, M.y, M.rblock(), M.cblock());
+			matrixVt = SharedMatrix<MatrixType>(nvals, M.y, 'z', M.rblock(), M.cblock());
 		else
 			matrixVt.resize(0, 0);
 
@@ -49,7 +52,8 @@ namespace peigen
 
 		
 		int lwork = (int) min_workspace_length;
-		MatrixType workspace(lwork, 1);
+		//MatrixType workspace(lwork, 1);
+		MatrixType workspace = MatrixType::Zero(lwork, 1);
 
 		// calling pdgesvd the allocated workspace "work" and its length in lwork
 		// the data in M will be destroyed after this call
