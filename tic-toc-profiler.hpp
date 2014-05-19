@@ -137,7 +137,10 @@ class DoProfiler
 		
 		void dump(string fname);
 			
-
+		inline void clear()
+		{
+			root.clear();
+		}
 };
 
 class NoProfiler
@@ -156,6 +159,7 @@ class NoProfiler
 		inline double toc(string, string) { return -1; };
 		void dump() {};
 		void dump(string) {};
+		inline void clear(){};
 };
 
 #ifdef USE_PROFILER
