@@ -65,6 +65,11 @@ class event
 		subEvents = new map<string, event>;
 		samples.reserve(256);
 	}
+
+	~event()
+	{
+		delete subEvents;
+	}
 };
  
 
