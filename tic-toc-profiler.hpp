@@ -213,7 +213,7 @@ inline void DoProfiler::dump()
 {
 
 	YAML::Emitter yout;
-	yout.SetDoublePrecision(8);
+	yout.SetDoublePrecision(16);
 	yout << *this;
 	ofstream fout(out_file.c_str(), ios_base::trunc);
 	fout << yout.c_str();
@@ -226,7 +226,7 @@ inline void DoProfiler::dump(const string& fname)
 {
 
 	YAML::Emitter yout;
-	yout.SetDoublePrecision(8);
+	yout.SetDoublePrecision(16);
 	yout << *this;
 	ofstream fout(fname.c_str(), ios_base::trunc);
 	fout << yout.c_str();
