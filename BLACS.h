@@ -151,8 +151,7 @@ namespace peigen
 			//std::cout << "(" << myrank << ") " << myrow << " x " << mycol << std::endl << std::flush;	
 		}
 		
-<<<<<<< HEAD
-=======
+
 		inline void finalize()
 		{
 			delete iZERO;
@@ -164,7 +163,7 @@ namespace peigen
 			Cblacs_exit(1 /*program will continue, call MPI::finalize after*/);
 		}
 
->>>>>>> ScaSolve
+
 		inline void transpGrid()
 		{
 			int tmp = grid_cols;

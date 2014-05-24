@@ -49,17 +49,15 @@ namespace peigen
 					   if (BLACS::myrank == 0)
 						   std::cout << "Solved a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs. Return code was: " << info << std::endl;
 
-<<<<<<< HEAD
 		//A.printDetails();
 		//B.printDetails();
-=======
+
 					   break;
 		}
 		case svd:
 		{
 					matrixLU.gather(0);
 					solution.gather(0);
->>>>>>> ScaSolve
 
 					if (BLACS::ROOT)
 					{
