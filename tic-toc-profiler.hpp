@@ -89,22 +89,42 @@ public:
 };
 
 
-
+/**		   \class DoProfiler
+ *		   \brief The actual tic-toc-profiler class.
+ *         The class profiler refers to this class if the program is compiled with USE_PROFILER
+ *
+ *  Detailed description starts here.
+ */
 class DoProfiler
 {
 	eventlist *current;
 	string out_file;
-
-public:
-	const double factor;
 	eventlist root;
 
-	DoProfiler() : factor((double)thischrono::high_resolution_clock::period::num / thischrono::high_resolution_clock::period::den), out_file("tic-toc-profiler.yml"), root(), current(&root)
+public:
+	/**
+	 * Contains the resolution in seconds of the clock used.
+	 */
+	const double resolution;
+
+	/**
+	* Default constructor.
+	* If the default constructor is used and no filename is given when using dump(), the timings will be printed in the default file "tic-toc-profiler.yml" in the execution directory.
+	*/
+	DoProfiler() : resolution((double)thischrono::high_resolution_clock::period::num / thischrono::high_resolution_clock::period::den), out_file("tic-toc-profiler.yml"), root(), current(&root)
 	{}
 
-	DoProfiler(const string& fname) : factor((double)thischrono::high_resolution_clock::period::num / thischrono::high_resolution_clock::period::den), out_file(fname), root(), current(&root)
+	/**
+	* Constructor with default filename where to save timings.
+	*@param fname default filename where to save timings.
+	*/
+	DoProfiler(const string& fname) : resolution((double)thischrono::high_resolution_clock::period::num / thischrono::high_resolution_clock::period::den), out_file(fname), root(), current(&root)
 	{}
 
+	/**
+	* Starts timing a section of code.
+	*@param key name of the section being timed.
+	*/
 	inline void tic(const string& key)
 	{
 		(*(*current).eventlist_[key].subEvents).parentlist_ = current;
@@ -112,37 +132,67 @@ public:
 		(*(*current).parentlist_).eventlist_[key].tic_time = thischrono::high_resolution_clock::now();
 	}
 
+	/**
+	 * Stops timing a section of code.
+	 * If a section with the same name on the same level has already been timed, all the samples are kept in a vector.
+	 *@param key name of the section being timed.
+	 */
 	inline double toc(const string& key)
 	{
 		(*current).parentlist_->eventlist_[key].toc_time = thischrono::high_resolution_clock::now();
 		current = (*current).parentlist_;
-		const double sample = ((*current).eventlist_[key].toc_time - (*current).eventlist_[key].tic_time).count() * factor;
+		const double sample = ((*current).eventlist_[key].toc_time - (*current).eventlist_[key].tic_time).count() * resolution;
 		(*current).eventlist_[key].samples.push_back(sample);
 		//cout << ((*parent)[key].toc_time - (*parent)[key].tic_time).count() << " " << (double)boost::chrono::steady_clock::period::num/boost::chrono::steady_clock::period::den  << endl;
 
 		return sample;
 	}
 
+	/**
+	 * Stops timing a section of code and prints the duration to std::cout.
+	 * If a section with the same name on the same level has already been timed, all the samples are kept in a vector.
+ 	 *@param key name of the section being timed.
+	 *@param text text to print in std::cout before the sample value.
+     */
 	inline double toc(const string& key, const string& text)
 	{
 		(*current).parentlist_->eventlist_[key].toc_time = thischrono::high_resolution_clock::now();
 		current = (*current).parentlist_;
-		const double sample = ((*current).eventlist_[key].toc_time - (*current).eventlist_[key].tic_time).count() * factor;
+		const double sample = ((*current).eventlist_[key].toc_time - (*current).eventlist_[key].tic_time).count() * resolution;
 		(*current).eventlist_[key].samples.push_back(sample);
 
 		cout << text << sample << endl;
 		return sample;
 	}
 
+	/**
+	 * Prints samples to the file specified on construction.
+	 */
 	void dump();
+
+	/**
+	* Prints samples to the file specified by fname.
+	*@param fname name of the sfile where to print the samples.
+	*/
 	void dump(const string& fname);
 
+	/**
+	* Clears all the samples recorded.
+	*/
 	inline void clear()
 	{
 		root.eventlist_.clear();
+		current = &root;
 	}
 };
 
+/**		   \class NoProfiler
+ *		   \brief A dummy tic-toc-profiler class.
+ *         The class profiler refers to this dummy class if the program is not compiled with USE_PROFILER
+ *
+ *  This class has the same members as the DoProfiler class, but they don't do anything. This is intended for use as an easier alternative to removing all calls to the profiler when no timing information about the code is required. 
+ * @see DoProfiler for a description of the members.
+ */
 class NoProfiler
 {
 	eventlist *current = nullptr;
@@ -162,6 +212,9 @@ public:
 	inline void clear(){};
 };
 
+/**		\def USE_PROFILER
+ *	Indicates if the tic-toc-profiler should be used. If USE_PROFILER is not defined, the type profiler refers to the dummy, empty class NoProfiler. If it is defined, profiler refers to the class DoProfiler insstead.
+*/
 #ifdef USE_PROFILER
 typedef DoProfiler profiler;
 #else
