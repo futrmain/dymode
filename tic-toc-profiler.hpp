@@ -139,6 +139,7 @@ public:
 
 	inline void clear()
 	{
+		current = &root;
 		root.eventlist_.clear();
 	}
 };
