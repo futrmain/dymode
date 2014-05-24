@@ -92,13 +92,15 @@ class DoProfiler
 {
 	eventlist *current;
 	string out_file;
-	eventlist root;
+	
 
 public:
 	/**
 	 * Contains the resolution in seconds of the clock used.
 	 */
 	const double resolution;
+
+	eventlist root;
 
 	/**
 	* Default constructor.
