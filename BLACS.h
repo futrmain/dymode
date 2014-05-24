@@ -62,7 +62,7 @@ namespace peigen
 		int rblock, cblock;
 		bool ROOT;
 		bool active;
-		std::string major;
+		char major;
 
 		MPI::Intracomm COMM_ACTIVE;
 
@@ -84,7 +84,7 @@ namespace peigen
 			rblock = 3;
 			cblock = 2;
 
-			major = "R";	// the process grid will be row-major
+			major = 'R';	// the process grid will be row-major
 
 			/* Begin Cblas context for the process grid */
 			/* Square pattern */
@@ -129,7 +129,7 @@ namespace peigen
 
 			
 
-			Cblacs_gridinit(&ctxt, major.c_str(), grid_rows, grid_cols);
+			Cblacs_gridinit(&ctxt, &major, grid_rows, grid_cols);
 				
 			
 
@@ -151,6 +151,20 @@ namespace peigen
 			//std::cout << "(" << myrank << ") " << myrow << " x " << mycol << std::endl << std::flush;	
 		}
 		
+<<<<<<< HEAD
+=======
+		inline void finalize()
+		{
+			delete iZERO;
+			delete iONE;
+			delete dZERO;
+			delete dONE;
+
+			Cblacs_gridexit(ctxt);
+			Cblacs_exit(1 /*program will continue, call MPI::finalize after*/);
+		}
+
+>>>>>>> ScaSolve
 		inline void transpGrid()
 		{
 			int tmp = grid_cols;

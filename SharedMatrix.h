@@ -69,6 +69,10 @@ namespace peigen
 		{
 			nrows = other.nrows;
 			ncols = other.ncols; 
+			i = other.i;
+			j = other.j;
+			x = other.x;
+			y = other.y;
 			nrblock = other.nrblock; 
 			ncblock = other.ncblock;
 			local_matrix = other.local_matrix;
@@ -82,6 +86,10 @@ namespace peigen
 			SharedMatrix<MatrixType>  P = prod.eval();
 			nrows = P.nrows;
 			ncols = P.ncols; 
+			i = P.i;
+			j = P.j;
+			x = P.x;
+			y = P.y;
 			nrblock = P.nrblock; 
 			ncblock = P.ncblock;
 			local_matrix = P.local_matrix;

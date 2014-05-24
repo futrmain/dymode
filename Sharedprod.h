@@ -38,11 +38,11 @@ namespace peigen
 
 		SharedMatrix<MatrixType> P(A.x, B.y, rb, cb);
 
-		A.printDetails();
+		//A.printDetails();
 
-		B.printDetails();
+		//B.printDetails();
 
-		P.printDetails();
+		//P.printDetails();
 
 		assert((A.y==B.x) && "Multiplying matrices of different size");
 		
