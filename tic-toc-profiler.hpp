@@ -40,135 +40,139 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define BOOST_CHRONO_HEADER_ONLY
 #define BOOST_ERROR_CODE_HEADER_ONLY
 #include <boost/chrono.hpp>
-
 namespace thischrono = boost::chrono;
+
 #else
+
 #include <chrono>
 namespace thischrono = std::chrono;
-
 #endif
 
 using namespace std;
 
+class event;
+class eventlist;
+
+class eventlist
+{
+public:
+	map<string, event> eventlist_;
+	eventlist *parentlist_;
+
+	eventlist() {};
+	/*eventlist(eventlist *creator) : parentlist_(creator)
+	{};*/
+};
+
 class event
 {
-	public:
-	//string name;
+public:
 	thischrono::high_resolution_clock::time_point tic_time, toc_time;
-	//vector<unsigned long long int> samples;
 	vector<double> samples;
-	map<string, event> *subEvents;
-	map<string, event> *up;
+	eventlist *subEvents;
 
 	event()
 	{
-		subEvents = new map<string, event>;
+		subEvents = new eventlist;
 		samples.reserve(256);
-	}
+	};
+	/*event(eventlist *creator)
+	{
+	subEvents = new eventlist(creator);
+	samples.reserve(256);
+	}*/
 
 	~event()
 	{
 		delete subEvents;
-	}
+	};
 };
- 
+
 
 
 class DoProfiler
 {
-	map<string, event> *child;
-	map<string, event> *parent;
+	eventlist *current;
 	string out_file;
 
-	public:
-		const double factor;
-		map<string, event> root;
-		DoProfiler() : factor((double)thischrono::high_resolution_clock::period::num / thischrono::high_resolution_clock::period::den)
-		{
-			out_file = "tic-toc-profiler.yml";
-			parent = 0;
-			child = &root;
-		}
+public:
+	const double factor;
+	eventlist root;
 
-		DoProfiler(string fname) : factor((double)thischrono::high_resolution_clock::period::num / thischrono::high_resolution_clock::period::den)
-		{
-			out_file = fname;
-			parent = 0;
-			child = &root;
-		}
+	DoProfiler() : factor((double)thischrono::high_resolution_clock::period::num / thischrono::high_resolution_clock::period::den), out_file("tic-toc-profiler.yml"), root(), current(&root)
+	{}
 
-		void tic(string key)
-		{
+	DoProfiler(const string& fname) : factor((double)thischrono::high_resolution_clock::period::num / thischrono::high_resolution_clock::period::den), out_file(fname), root(), current(&root)
+	{}
 
-			//(*child)[key].name = key;
-			(*child)[key].up = parent;
-			//(*child)[key].subEvents = new map<string, event>;
-			parent = child;
-			child = (*child)[key].subEvents;
-			(*parent)[key].tic_time = thischrono::high_resolution_clock::now();
-		}
-		
-		double toc(string key)
-		{
-			(*parent)[key].toc_time = thischrono::high_resolution_clock::now();
-			double sample = ((*parent)[key].toc_time - (*parent)[key].tic_time).count() * factor;
-			(*parent)[key].samples.push_back(sample);
-			//cout << ((*parent)[key].toc_time - (*parent)[key].tic_time).count() << " " << (double)boost::chrono::steady_clock::period::num/boost::chrono::steady_clock::period::den  << endl;
-			child = parent;
-			parent = (*parent)[key].up;
+	inline void tic(const string& key)
+	{
+		(*(*current).eventlist_[key].subEvents).parentlist_ = current;
+		current = (*current).eventlist_[key].subEvents;
+		(*(*current).parentlist_).eventlist_[key].tic_time = thischrono::high_resolution_clock::now();
+	}
 
-			return sample;
-		}
-		
-		double toc(string key, string text)
-		{
-			(*parent)[key].toc_time = thischrono::high_resolution_clock::now();
-			double sample = ((*parent)[key].toc_time - (*parent)[key].tic_time).count() * factor;
-			(*parent)[key].samples.push_back(sample);
-			//cout << ((*parent)[key].toc_time - (*parent)[key].tic_time).count() << " " << (double)boost::chrono::steady_clock::period::num/boost::chrono::steady_clock::period::den  << endl;
-			child = parent;
-			parent = (*parent)[key].up;
+	inline double toc(const string& key)
+	{
+		(*current).parentlist_->eventlist_[key].toc_time = thischrono::high_resolution_clock::now();
+		current = (*current).parentlist_;
+		const double sample = ((*current).eventlist_[key].toc_time - (*current).eventlist_[key].tic_time).count() * factor;
+		(*current).eventlist_[key].samples.push_back(sample);
+		//cout << ((*parent)[key].toc_time - (*parent)[key].tic_time).count() << " " << (double)boost::chrono::steady_clock::period::num/boost::chrono::steady_clock::period::den  << endl;
 
-			cout << text << sample << endl;
-			return sample;
-		}
-		
-		void dump();
-		
-		void dump(string fname);
-			
+		return sample;
+	}
 
+	inline double toc(const string& key, const string& text)
+	{
+		(*current).parentlist_->eventlist_[key].toc_time = thischrono::high_resolution_clock::now();
+		current = (*current).parentlist_;
+		const double sample = ((*current).eventlist_[key].toc_time - (*current).eventlist_[key].tic_time).count() * factor;
+		(*current).eventlist_[key].samples.push_back(sample);
+
+		cout << text << sample << endl;
+		return sample;
+	}
+
+	void dump();
+	void dump(const string& fname);
+
+	inline void clear()
+	{
+		root.eventlist_.clear();
+	}
 };
 
 class NoProfiler
 {
-	map<string, event> *child;
-	map<string, event> *parent;
+	eventlist *current = nullptr;
+	string out_file = "";
 
-	public:
-		double factor;
-		map<string, event> root;
-		NoProfiler() {};
-		NoProfiler(string) {};
+public:
+	const double factor = 0;
+	eventlist root;
+	NoProfiler() {};
+	NoProfiler(const string&) {};
 
-		void tic(string) {};
-		inline double toc(string) { return -1; };
-		inline double toc(string, string) { return -1; };
-		void dump() {};
-		void dump(string) {};
+	inline void tic(const string&) {};
+	inline double toc(const string&) { return -1; };
+	inline double toc(const string&, const string&) { return -1; };
+	void dump() {};
+	void dump(string) {};
+	inline void clear(){};
 };
 
 #ifdef USE_PROFILER
-	typedef DoProfiler profiler;
+typedef DoProfiler profiler;
 #else
-	typedef NoProfiler profiler;
+typedef NoProfiler profiler;
 #endif
 
 
-YAML::Emitter& operator << (YAML::Emitter& out, const map<string, event>& events);
+YAML::Emitter& operator << (YAML::Emitter& out, const eventlist& events);
 YAML::Emitter& operator << (YAML::Emitter& out, const DoProfiler& prof);
 
-inline YAML::Emitter& operator << (YAML::Emitter& out, const DoProfiler& prof) 
+inline YAML::Emitter& operator << (YAML::Emitter& out, const DoProfiler& prof)
 {
 	/*
 	out << YAML::BeginMap;
@@ -183,17 +187,17 @@ inline YAML::Emitter& operator << (YAML::Emitter& out, const DoProfiler& prof)
 	return out;
 }
 
-inline YAML::Emitter& operator << (YAML::Emitter& out, const map<string, event>& events)
+inline YAML::Emitter& operator << (YAML::Emitter& out, const eventlist& events)
 {
 	out << YAML::BeginMap;
 
-	for (map<string, event>::const_iterator it = events.begin(); it != events.end(); it++)
+	for (map<string, event>::const_iterator it = events.eventlist_.begin(); it != events.eventlist_.end(); it++)
 	{
 		out << YAML::Key << (*it).first;
 		out << YAML::Value << YAML::BeginMap;
 		out << YAML::Key << "samples";
 		out << YAML::Value << YAML::Flow << (*it).second.samples;
-		if ((*(*it).second.subEvents).size() > 0)
+		if ((*(*it).second.subEvents).eventlist_.size() > 0)
 		{
 			out << YAML::Key << "subFunctions";
 			out << YAML::Value << (*(*it).second.subEvents);
@@ -209,22 +213,22 @@ inline void DoProfiler::dump()
 {
 
 	YAML::Emitter yout;
-
+	yout.SetDoublePrecision(16);
 	yout << *this;
-	ofstream fout(out_file.c_str());
+	ofstream fout(out_file.c_str(), ios_base::trunc);
 	fout << yout.c_str();
 	fout.close();
 
 	//cout << yout.c_str();	
 
 }
-inline void DoProfiler::dump(string fname)
+inline void DoProfiler::dump(const string& fname)
 {
 
 	YAML::Emitter yout;
-
+	yout.SetDoublePrecision(16);
 	yout << *this;
-	ofstream fout(fname.c_str());
+	ofstream fout(fname.c_str(), ios_base::trunc);
 	fout << yout.c_str();
 	fout.close();
 
