@@ -60,8 +60,6 @@ public:
 	eventlist *parentlist_;
 
 	eventlist() {};
-	/*eventlist(eventlist *creator) : parentlist_(creator)
-	{};*/
 };
 
 class event
@@ -76,12 +74,7 @@ public:
 		subEvents = new eventlist;
 		samples.reserve(256);
 	};
-	/*event(eventlist *creator)
-	{
-	subEvents = new eventlist(creator);
-	samples.reserve(256);
-	}*/
-
+	
 	~event()
 	{
 		delete subEvents;
@@ -99,13 +92,15 @@ class DoProfiler
 {
 	eventlist *current;
 	string out_file;
-	eventlist root;
+	
 
 public:
 	/**
 	 * Contains the resolution in seconds of the clock used.
 	 */
 	const double resolution;
+
+	eventlist root;
 
 	/**
 	* Default constructor.
@@ -228,14 +223,6 @@ YAML::Emitter& operator << (YAML::Emitter& out, const DoProfiler& prof);
 
 inline YAML::Emitter& operator << (YAML::Emitter& out, const DoProfiler& prof)
 {
-	/*
-	out << YAML::BeginMap;
-	out << YAML::Key << "factor";
-	out << YAML::Value << prof.factor;
-	out << YAML::Comment("for time in seconds");
-	out << YAML::EndMap;
-	*/
-	//std::cout << "unit: " << prof.factor << endl;
 	out << prof.root;
 
 	return out;
