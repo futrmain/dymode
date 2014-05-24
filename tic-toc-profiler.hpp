@@ -172,7 +172,7 @@ typedef NoProfiler profiler;
 YAML::Emitter& operator << (YAML::Emitter& out, const eventlist& events);
 YAML::Emitter& operator << (YAML::Emitter& out, const DoProfiler& prof);
 
-YAML::Emitter& operator << (YAML::Emitter& out, const DoProfiler& prof)
+inline YAML::Emitter& operator << (YAML::Emitter& out, const DoProfiler& prof)
 {
 	/*
 	out << YAML::BeginMap;
@@ -187,7 +187,7 @@ YAML::Emitter& operator << (YAML::Emitter& out, const DoProfiler& prof)
 	return out;
 }
 
-YAML::Emitter& operator << (YAML::Emitter& out, const eventlist& events)
+inline YAML::Emitter& operator << (YAML::Emitter& out, const eventlist& events)
 {
 	out << YAML::BeginMap;
 
