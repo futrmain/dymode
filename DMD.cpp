@@ -157,18 +157,12 @@ int main(int argc, char* argv[])
 			cout << "HERE COMES Vt" << endl << flush;
 		cout << svd.matrixVt;
 
-		svd.matrixU.gather(0);
-		svd.matrixVt.gather(0);
-		snaps.gather(0);
-		if (ROOT)
-		{
-			MatrixXd Mtest = svd.matrixU.global_matrix * svd.singularValues.asDiagonal() * svd.matrixVt.global_matrix - snaps.global_matrix.block(0, 0, 12, 6);
-			cout << "The SVD residuals are " << endl << flush;
-			cout << Mtest << endl << endl;
-		}
-		svd.matrixVt.global_matrix.resize(0, 0);
-		svd.matrixU.global_matrix.resize(0, 0);
-		snaps.global_matrix.resize(0, 0);
+
+		double r_svd = svd.residual(snaps.block(0, 0, 4 * Np, Nt - 1));
+		//if (ROOT)
+		cout << "Residual from SVD: " << r_svd << endl << flush;
+
+		
 
 		prof.toc("SVD");
 		/////**************************************************************************************************/
