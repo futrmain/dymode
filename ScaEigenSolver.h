@@ -29,6 +29,48 @@ namespace peigen
 		inline MatrixType eigenvalues() { return evalues; }
 		inline setMethod(const EigenMethod& method) { method_ = method };
 
+		MatrixType::RealScalar residual(SharedMatrix<MatrixType> original)
+		{
+			SharedMatrix<Matrix<complex<MatrixType::RealScalar>, Dynamic, Dynamic>> R(evectors);
+			
+			// Multiplication by diagonal elements
+			for (int j = 0; j < R.local_matrix.cols(); ++j)
+			{
+				const int g = indxl2g(j, evectors.cblock(), BLACS::grid_col, BLACS::mycol);
+				R.local_matrix.col(j).noalias() *= evalues(g);
+			}
+
+			R.pgemm(1., original.cast<complex<double>>(), evectors, -1.);
+
+			// Compute local highest residual
+			return R.local_matrix.cwiseAbs().maxCoeff();
+		}
+
+		MatrixType::RealScalar global_residual(SharedMatrix<MatrixType> original)
+		{
+			SharedMatrix<Matrix<complex<MatrixType::RealScalar>, Dynamic, Dynamic>> R(evectors);
+
+			// Multiplication by diagonal elements
+			for (int j = 0; j < R.local_matrix.cols(); ++j)
+			{
+				const int g = BLACS::indxl2g(j, evectors.cblock(), BLACS::grid_cols, BLACS::mycol);
+				R.local_matrix.col(j).noalias() = R.local_matrix.col(j) * evalues(g);
+			}
+
+			R.pgemm(1., original.cast<complex<double>>(), evectors, -1.);
+
+			//std::cout << "RESIDUAL MATRIX " << std::endl << R << std::endl;
+
+			// Compute local highest residual
+			double r_loc = R.local_matrix.cwiseAbs().maxCoeff();
+			double r;
+
+			// Reduction over all processes
+			BLACS::COMM_ACTIVE.Reduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
+
+			return r;
+		}
+
 	};
 
 	template <typename MatrixType>
@@ -93,65 +135,70 @@ namespace peigen
 
 		std::cout << "Eigen values from Eigen" << endl << evalues << endl << endl;
 		std::cout << "Eigen vectors from Eigen" << endl << evectors << endl << endl;
-
-		//ScaHessenberg<MatrixXd> hess(A);
-
-		//std::cout << "Matrix H " << endl << hess.matrixH() << endl << endl;
-		//std::cout << "Matrix Q " << endl << hess.matrixQ() << endl;
-
-		//
-
-		////MPI::COMM_WORLD.Barrier();
-
-		//SharedMatrix<MatrixType> H = hess.matrixH();
-		//H.gather(0);
-		//SharedMatrix<MatrixType> Q = hess.matrixQ();
-		//Q.gather(0);
-
-		//std::cout << "Residuals after Hess: " << endl << Q.global_matrix * H.global_matrix * Q.global_matrix.transpose() - A.global_matrix<< endl;
-
-		////EigenSolver<MatrixXd> eig(H.rows());
-		////eig.computeFromHessenberg(H.global_matrix, Q.global_matrix, true);
-
-		///*A.gather(0);
-
-		//EigenSolver<MatrixXd> eig;
-		//eig.setMaxIterations(1000000);
-		//eig.compute(A.global_matrix);
-		//std::cout << "Max number of iterations" << endl << eig.getMaxIterations()  << endl << endl;
-
-		//std::cout << "Eigen values from Eigen" << endl << eig.eigenvalues() << endl << endl;*/
-
-
-		//ScaSchur<MatrixXd> schur(hess.matrixH(), hess.matrixQ(), true);
-
-		//std::cout << "Matrix T " << endl << schur.matrixT() << endl << endl;
-		//std::cout << "Matrix Z " << endl << schur.matrixZ() << endl;
-
-		//std::cout << "Eigen values " << endl << schur.eigenvals << endl << endl;
-
-
-		//SharedMatrix<MatrixType> reconstruct(A);
-		//reconstruct = schur.matrixZ() * schur.matrixT();
-		//reconstruct = reconstruct * schur.matrixZ().transpose();
-		//reconstruct.gather(0);
-		//
-		//std::cout << "Residuals after Schur: " << endl << reconstruct.global_matrix - A.global_matrix  << endl;
-
-		//
-		//SharedMatrix<MatrixType> Z = schur.matrixZ();
-		//Z.gather(0);
-		//SharedMatrix<MatrixType> T = schur.matrixT();
-		//T.gather(0);
-		//eig.computeFromSchur(T.global_matrix, Z.global_matrix, true);
-		////eig.compute(A.global_matrix);
-
-		//std::cout << "Eigen values from Eigen: " << endl << eig.eigenvalues() << endl << endl;
-		//std::cout << "Eigen vectors from Eigen: " << endl << eig.eigenvectors() << endl << endl;
-
-		//std::cout << "Residuals from Eigen problem: " << endl <<  endl << endl;
-		//std::cout << A.global_matrix * eig.eigenvectors() - eig.eigenvectors() * eig.eigenvalues().asDiagonal() << endl;
+		
 	}
 
 }	// end namespace peigen
 #endif // PEIGEN_SCAEIGENSOLVER_H
+
+
+
+
+
+//ScaHessenberg<MatrixXd> hess(A);
+
+//std::cout << "Matrix H " << endl << hess.matrixH() << endl << endl;
+//std::cout << "Matrix Q " << endl << hess.matrixQ() << endl;
+
+//
+
+////MPI::COMM_WORLD.Barrier();
+
+//SharedMatrix<MatrixType> H = hess.matrixH();
+//H.gather(0);
+//SharedMatrix<MatrixType> Q = hess.matrixQ();
+//Q.gather(0);
+
+//std::cout << "Residuals after Hess: " << endl << Q.global_matrix * H.global_matrix * Q.global_matrix.transpose() - A.global_matrix<< endl;
+
+////EigenSolver<MatrixXd> eig(H.rows());
+////eig.computeFromHessenberg(H.global_matrix, Q.global_matrix, true);
+
+///*A.gather(0);
+
+//EigenSolver<MatrixXd> eig;
+//eig.setMaxIterations(1000000);
+//eig.compute(A.global_matrix);
+//std::cout << "Max number of iterations" << endl << eig.getMaxIterations()  << endl << endl;
+
+//std::cout << "Eigen values from Eigen" << endl << eig.eigenvalues() << endl << endl;*/
+
+
+//ScaSchur<MatrixXd> schur(hess.matrixH(), hess.matrixQ(), true);
+
+//std::cout << "Matrix T " << endl << schur.matrixT() << endl << endl;
+//std::cout << "Matrix Z " << endl << schur.matrixZ() << endl;
+
+//std::cout << "Eigen values " << endl << schur.eigenvals << endl << endl;
+
+
+//SharedMatrix<MatrixType> reconstruct(A);
+//reconstruct = schur.matrixZ() * schur.matrixT();
+//reconstruct = reconstruct * schur.matrixZ().transpose();
+//reconstruct.gather(0);
+//
+//std::cout << "Residuals after Schur: " << endl << reconstruct.global_matrix - A.global_matrix  << endl;
+
+//
+//SharedMatrix<MatrixType> Z = schur.matrixZ();
+//Z.gather(0);
+//SharedMatrix<MatrixType> T = schur.matrixT();
+//T.gather(0);
+//eig.computeFromSchur(T.global_matrix, Z.global_matrix, true);
+////eig.compute(A.global_matrix);
+
+//std::cout << "Eigen values from Eigen: " << endl << eig.eigenvalues() << endl << endl;
+//std::cout << "Eigen vectors from Eigen: " << endl << eig.eigenvectors() << endl << endl;
+
+//std::cout << "Residuals from Eigen problem: " << endl <<  endl << endl;
+//std::cout << A.global_matrix * eig.eigenvectors() - eig.eigenvectors() * eig.eigenvalues().asDiagonal() << endl;
