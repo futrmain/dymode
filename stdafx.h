@@ -33,7 +33,7 @@
 
 #include "H5inDMD.h"
 
-
+#include "mkl.h"
 //#include <stdio.h>
 //#include <tchar.h>
 

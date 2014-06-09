@@ -32,7 +32,8 @@
 #include "ScaSVD.h"
 
 #include "ScaSolve.h"
-#include "ScaEigenSolve.h"
+
+#include "ScaEigenSolver.h"
 
 
 
