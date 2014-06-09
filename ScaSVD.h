@@ -43,11 +43,11 @@ namespace peigen
 		else
 			matrixVt.resize(0, 0);
 
-		double min_workspace_length;
+		double min_workspace_length = 0;
 
 		// calling pdgesvd with lwork:=-1 only computes the minimum size necessary for the array "work"
 		// the computed value is returned as the first element in "dlwork"
-		int info;
+		int info = 0;
 		PBLAS::pxgesvd(getU, getVt, M.x, M.y, M.localData(), M.i, M.j, M.descriptor(), singularValues.data(), matrixU.local_matrix.data(), matrixU.i, matrixU.j, matrixU.descriptor(), matrixVt.localData(), matrixVt.i, matrixVt.j, matrixVt.descriptor(), &min_workspace_length, /*do a space query*/-1, &info);
 
 		
