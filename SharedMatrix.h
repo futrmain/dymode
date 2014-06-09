@@ -63,6 +63,38 @@ namespace peigen
 		void gather(int sink);
 		inline MPI::Datatype MPIType();
 
+		// Classic call to ScaLapack pxgemm
+		void pgemm(double alpha, SharedMatrix<MatrixType> A, SharedMatrix<MatrixType> B, double beta)
+		{
+			// Allocate result matrix
+			int m, n, k, rb, cb;
+
+			char opA = (A.use_transpose ? 'T' : 'N');	// FIXME need to distinguish transpose and adjoint
+			char opB = (B.use_transpose ? 'T' : 'N');
+
+			rb = A.rblock();
+			cb = B.cblock();
+
+			SharedMatrix<MatrixType>& P = *this;
+
+			assert(((A.y == B.x) && (B.y == P.x ) && (A.x == P.x)) && "Multiplying matrices of different size");
+
+			// Define submatrices
+			int iA = A.i;
+			int jA = A.j;
+			int iB = B.i;
+			int jB = B.j;
+			int iP = P.i;
+			int jP = P.j;
+
+			
+			PBLAS::pxgemm(opA, opB, A.x, B.y, A.y, alpha,
+				A.localData(), iA, jA, A.descriptor(),		// matrix A
+				B.localData(), iB, jB, B.descriptor(),	// B
+				beta, P.localData(), iP, jP, P.descriptor());	// resulting temporary product
+
+		}
+
 
 		// Operators
 		SharedMatrix<MatrixType> &operator=(SharedMatrix<MatrixType> &other)
