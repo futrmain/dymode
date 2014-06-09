@@ -256,15 +256,17 @@ int main(int argc, char* argv[])
 		prof.tic("EigenProblem");
 		//ScaEigenSolve<MatrixXd> pes(B);
 
-		// Matrix of eigen vectors
-		SharedMatrix<MatrixXcd> X;
-		MatrixXcd lambdas(Nt - 1, 1);
+		
 
 		ScaEigenSolver<MatrixXd> eig(B, true, EigSchur);
 
 		double r_eig = eig.global_residual(B);
 		if (ROOT)
 			cout << "Residual from Eigen problem: " << r_eig << endl << flush;
+
+		// Matrix of eigen vectors
+		SharedMatrix<MatrixXcd> X = eig.eigenVectors();
+		MatrixXcd lambdas = eig.eigenValues(); 
 
 		prof.toc("EigenProblem");
 		/////**************************************************************************************************/
@@ -291,7 +293,7 @@ int main(int argc, char* argv[])
 		cout << rhsZ;
 
 
-		ScaSolve<MatrixXcd> solver(X, rhsZ, peigen::svd);
+		ScaSolve<MatrixXcd> solver(X, rhsZ, peigen::pxgesv);
 		if (ROOT)
 		{
 			cout << "HERE COMES solution is computed" << endl << flush;
