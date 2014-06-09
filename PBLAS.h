@@ -68,6 +68,25 @@ namespace peigen
 
 			void pzgehrd_(int *n, int *ilo, int *ihi, complex<double> *a, int *ia, int *ja, int *desca, complex<double> *tau, complex<double> *work, int *lwork, int *info);
 
+			////////////////////// Orthogonal Multiplication
+			void psormhr_(char *side, char *trans, int *m, int *n, int *ilo, int *ihi, float *a, int *ia, int *ja, int *desca, float *tau, float *c, int *ic, int *jc, int *descc, float *work, int *lwork, int *info);
+
+			void pdormhr_(char *side, char *trans, int *m, int *n, int *ilo, int *ihi, double *a, int *ia, int *ja, int *desca, double *tau, double *c, int *ic, int *jc, int *descc, double *work, int *lwork, int *info);
+
+
+			///////////////////////
+			//////////////////////// Schur
+			void pshseqr_(char *job, char* compz, int* n, int* ilo, int* ihi, float* h, int* desch, float* wr, float* wi, float* z, int* descz, float* work, int* lwork, int* iwork, int* liwork, int* info);
+
+			void pdhseqr_(char *job, char* compz, int* n, int* ilo, int* ihi, double* h, int* desch, double* wr, double* wi, double* z, int* descz, double* work, int* lwork, int* iwork, int* liwork, int* info);
+
+			//////////////////////// peigen Schur
+			void peigen_pdhseqr_(char *job, char* compz, int* n, int* ilo, int* ihi, double* h, int* desch, double* wr, double* wi, double* z, int* descz, double* work, int* lwork, int* iwork, int* liwork, int* info);
+
+			//auto PEIGEN_PDHSEQR_ = peigen_pdhseqr_;
+
+			//////////////////////// peigen Schur other one
+			void pdlahqr_(bool *wantt, bool *wantz, int *n, int *ilo, int *ihi, double *a, int *desca, double *wr, double *wi, int *iloz, int *ihiz, double *z, int *descz, double *work, int *lwork, int *iwork, int *ilwork, int *info);
 		}
 
 
@@ -203,6 +222,39 @@ namespace peigen
 			pzgehrd_(&n, &ilo, &ihi, a, &ia, &ja, desca, tau, work, &lwork, info);
 		}
 
+		////////////////////////// Normal multiplication
+		inline void pxormhr(char side, char trans, int m, int n, int ilo, int ihi, float *a, int ia, int ja, int *desca, float *tau, float *c, int ic, int jc, int *descc, float *work, int lwork, int *info)
+		{
+			psormhr_(&side, &trans, &m, &n, &ilo, &ihi, a, &ia, &ja, desca, tau, c, &ic, &jc, descc, work, &lwork, info);
+		}
+
+		inline void pxormhr(char side, char trans, int m, int n, int ilo, int ihi, double *a, int ia, int ja, int *desca, double *tau, double *c, int ic, int jc, int *descc, double *work, int lwork, int *info)
+		{
+			pdormhr_(&side, &trans, &m, &n, &ilo, &ihi, a, &ia, &ja, desca, tau, c, &ic, &jc, descc, work, &lwork, info);
+		}
+
+		/////////////////// Schur
+		inline void pxhseqr(char job, char compz, int n, int ilo, int ihi, float* h, int* desch, float* wr, float* wi, float* z, int* descz, float* work, int lwork, int* iwork, int liwork, int* info)
+		{
+			pshseqr_(&job, &compz, &n, &ilo, &ihi, h, desch, wr, wi, z, descz, work, &lwork, iwork, &liwork, info);
+		}
+
+		inline void pxhseqr(char job, char compz, int n, int ilo, int ihi, double* h, int* desch, double* wr, double* wi, double* z, int* descz, double* work, int lwork, int* iwork, int liwork, int* info)
+		{
+			pdhseqr_(&job, &compz, &n, &ilo, &ihi, h, desch, wr, wi, z, descz, work, &lwork, iwork, &liwork, info);
+		}
+
+
+		inline void peigen_pxhseqr(char job, char compz, int n, int ilo, int ihi, double* h, int* desch, double* wr, double* wi, double* z, int* descz, double* work, int lwork, int* iwork, int liwork, int* info)
+		{
+			peigen_pdhseqr_(&job, &compz, &n, &ilo, &ihi, h, desch, wr, wi, z, descz, work, &lwork, iwork, &liwork, info);
+		}
+
+		inline void pxlahqr(bool wantt, bool wantz, int n, int ilo, int ihi, double *a, int *desca, double *wr, double *wi, int iloz, int ihiz, double *z, int *descz, double *work, int lwork, int *iwork, int ilwork, int *info)
+		{
+			pdlahqr_(&wantt, &wantz, &n, &ilo, &ihi, a, desca, wr, wi, &iloz, &ihiz, z, descz, work, &lwork, iwork, &ilwork, info);
+		}
+		
 
 	}	// end namespace PBLAS
 
