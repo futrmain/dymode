@@ -44,6 +44,7 @@ using namespace phdfp;
 
 int main(int argc, char* argv[])
 {
+	int mkl_res = mkl_cbwr_set(MKL_CBWR_COMPATIBLE);
 	MPI::Init();
 	int rank, numtasks;
 	rank = MPI::COMM_WORLD.Get_rank();
@@ -52,10 +53,12 @@ int main(int argc, char* argv[])
 
 	DoProfiler prof;
 
+	cout.precision(2*std::numeric_limits< double >::digits10);
+
 	// Create the BLACS grid
 	BLACS::init(numtasks);
 	if (BLACS::ROOT)
-		std::cout << "BLACS Initialized." << endl << flush;
+		std::cout << "BLACS Initialized. MKL says " << mkl_res << endl << flush;
 	//BLACS::printGrid();
 
 	MPI::COMM_WORLD.Barrier(); // For printing purposes
