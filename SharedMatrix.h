@@ -77,7 +77,7 @@ namespace peigen
 
 			SharedMatrix<MatrixType>& P = *this;
 
-			assert(((A.y == B.x) && (B.y == P.x ) && (A.x == P.x)) && "Multiplying matrices of different size");
+			assert(((A.y == B.x) && (B.y == P.y ) && (A.x == P.x)) && "Multiplying matrices of different size");
 
 			// Define submatrices
 			int iA = A.i;
