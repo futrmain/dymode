@@ -35,7 +35,7 @@ namespace phdfp
 		Matrix<Matrix<int, 1, Dynamic>, Dynamic, 1> snapshots_per_process;
 
 		// Constructor
-		datasetreader(string fname) : firstname(fname), nfiles(1) 
+		datasetreader(string fname) : nfiles(1), firstname(fname)
 		{}
 
 		datasetreader(int num_files, string root_name) : nfiles(num_files), rootname(root_name), firstname(filename(1))
