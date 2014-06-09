@@ -36,8 +36,8 @@ namespace peigen
 			// Multiplication by diagonal elements
 			for (int j = 0; j < R.local_matrix.cols(); ++j)
 			{
-				const int g = indxl2g(j, evectors.cblock(), BLACS::grid_col, BLACS::mycol);
-				R.local_matrix.col(j).noalias() *= evalues(g);
+				const int g = BLACS::indxl2g(j, evectors.cblock(), BLACS::grid_cols, BLACS::mycol);
+				R.local_matrix.col(j).noalias() = R.local_matrix.col(j) * evalues(g);
 			}
 
 			R.pgemm(1., original.cast<complex<double>>(), evectors, -1.);
@@ -48,24 +48,9 @@ namespace peigen
 
 		MatrixType::RealScalar global_residual(SharedMatrix<MatrixType> original)
 		{
-			SharedMatrix<Matrix<complex<MatrixType::RealScalar>, Dynamic, Dynamic>> R(evectors);
-
-			// Multiplication by diagonal elements
-			for (int j = 0; j < R.local_matrix.cols(); ++j)
-			{
-				const int g = BLACS::indxl2g(j, evectors.cblock(), BLACS::grid_cols, BLACS::mycol);
-				R.local_matrix.col(j).noalias() = R.local_matrix.col(j) * evalues(g);
-			}
-
-			R.pgemm(1., original.cast<complex<double>>(), evectors, -1.);
-
-			//std::cout << "RESIDUAL MATRIX " << std::endl << R << std::endl;
-
-			// Compute local highest residual
-			double r_loc = R.local_matrix.cwiseAbs().maxCoeff();
+			double r_loc = residual(original);
 			double r;
 
-			// Reduction over all processes
 			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
 
 			return r;
