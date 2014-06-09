@@ -66,7 +66,7 @@ namespace peigen
 			double r;
 
 			// Reduction over all processes
-			BLACS::COMM_ACTIVE.Reduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
+			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
 
 			return r;
 		}
