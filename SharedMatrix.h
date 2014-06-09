@@ -96,6 +96,30 @@ namespace peigen
 		}
 
 
+		// FIXME this should account for transpose flags somehow
+		MatrixType localBlock()
+		{
+			int i_loc = 0;
+			while (BLACS::indxl2g(i_loc, this->rblock(), BLACS::grid_rows, BLACS::myrow) < this->i - 1)
+				++i_loc;
+
+			int j_loc = 0;
+			while (BLACS::indxl2g(j_loc, this->cblock(), BLACS::grid_cols, BLACS::mycol) < this->j - 1)
+				++j_loc;
+
+			int li_loc = this->local_matrix.rows() - i_loc;
+			while (BLACS::indxl2g(i_loc + li_loc, this->rblock(), BLACS::grid_rows, BLACS::myrow) > this->i + this->x - 1)
+				--li_loc;
+
+			int lj_loc = this->local_matrix.cols() - j_loc;
+			while (BLACS::indxl2g(j_loc + lj_loc, this->cblock(), BLACS::grid_cols, BLACS::mycol) > this->j + this->y - 1)
+				--lj_loc;
+
+			return this->local_matrix.block(i_loc, j_loc, li_loc, lj_loc);
+		}
+
+
+
 		// Operators
 		SharedMatrix<MatrixType> &operator=(SharedMatrix<MatrixType> &other)
 		{

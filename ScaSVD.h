@@ -13,6 +13,38 @@ namespace peigen
 		SharedMatrix<MatrixType> matrixU, matrixVt;
 
 		ScaSVD(SharedMatrix<MatrixType> M, bool computeU, bool computeVt);
+
+		MatrixType::RealScalar residual(SharedMatrix<MatrixType> original)
+		{
+			SharedMatrix<MatrixType> R(matrixU);
+
+			// Multiplication by diagonal elements
+			for (int j = 0; j < R.local_matrix.cols(); ++j)
+			{
+				const int g = BLACS::indxl2g(j, R.cblock(), BLACS::grid_cols, BLACS::mycol);
+				R.local_matrix.col(j).noalias() = R.local_matrix.col(j) * singularValues(g, 0);
+			}
+
+			original.pgemm(1., R, matrixVt, -1.);
+
+
+			//cout << "Residual MATRIX from SVD RESIDUAL(): " << endl << original << endl << flush;
+
+
+			// Compute local highest residual
+			return original.localBlock().cwiseAbs().maxCoeff();
+		}
+
+		MatrixType::RealScalar global_residual(SharedMatrix<MatrixType> original)
+		{
+			double r_loc = residual(original);
+			double r;
+
+			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
+
+			return r;
+		}
+
 	};
 
 	template <typename MatrixType>
