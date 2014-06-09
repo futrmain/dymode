@@ -94,8 +94,8 @@ namespace peigen
 			ncblock = P.ncblock;
 			local_matrix = P.local_matrix;
 			std::copy(P.desc, P.desc + 9, desc);
-			prod.A.clear();
-			prod.B.clear();
+			//prod.A.clear();
+			//prod.B.clear();
 			return *this;
 		}
 
@@ -280,8 +280,8 @@ namespace peigen
 		ncblock = P.ncblock;
 		local_matrix = P.local_matrix;
 		std::copy(P.desc, P.desc + 9, desc);
-		prod.A.clear();
-		prod.B.clear();
+		//prod.A.clear();
+		//prod.B.clear();
 	}
 
 
@@ -379,7 +379,7 @@ namespace peigen
 
 
 	template <typename MatrixType>
-	Sharedprod<MatrixType> operator*(SharedMatrix<MatrixType> &a, SharedMatrix<MatrixType> &b)
+	Sharedprod<MatrixType> operator*(SharedMatrix<MatrixType> a, SharedMatrix<MatrixType> b)
 	{return Sharedprod<MatrixType>(a, b);}
 
 	template <typename MatrixType>
