@@ -173,7 +173,7 @@ int main(int argc, char* argv[])
 
 
 		///////**************************************************************************************************/
-		///////*------------------------------      DO B := Ut * S2 * V * SIG+     ------------------------------*/
+		///////*-----------------------------      DO B := Ut * S2 * V * SIG+     ------------------------------*/
 		///////**************************************************************************************************/
 		prof.tic("MultiplyB");
 		//SharedMatrix<MatrixXd> S2(4*Np, NtperF - 1);
@@ -219,7 +219,7 @@ int main(int argc, char* argv[])
 		if (ROOT)
 		{
 			cout << " pinv_tol: " << pinv_tol << endl << flush;
-			assert(pinv_tol == 1.4825790295167806e-011 && "Tolerance for pseudo-inverse differs");
+			//assert(pinv_tol == 1.4825790295167806e-011 && "Tolerance for pseudo-inverse differs");
 		}
 		for (int i = 0; i < B.local_matrix.cols(); i++)
 		{
@@ -262,9 +262,9 @@ int main(int argc, char* argv[])
 
 		ScaEigenSolver<MatrixXd> eig(B, true, EigSchur);
 
-		double r = eig.global_residual(B);
+		double r_eig = eig.global_residual(B);
 		if (ROOT)
-			cout << "Residual from Eigen problem: " << r << endl << flush;
+			cout << "Residual from Eigen problem: " << r_eig << endl << flush;
 
 		prof.toc("EigenProblem");
 		/////**************************************************************************************************/
@@ -277,133 +277,103 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 		/////*------------------------------      DO A LINEAR SYSTEM SOLVE      ------------------------------*/
 		/////**************************************************************************************************/
-		//prof.tic("LinearSolve");
-		////cout << "(" << BLACS::myrank << ")" << endl;
-		//SharedMatrix<MatrixXd> rhs = svd.matrixU.transpose() * snaps.block(0, Nt - 1, 4 * Np, 1);
-		//svd.matrixU.clear();
-		//snaps.clear();
-		//SharedMatrix<MatrixXcd> rhsZ = rhs.cast<std::complex<double> >();
+		prof.tic("LinearSolve");
+		//cout << "(" << BLACS::myrank << ")" << endl;
+		SharedMatrix<MatrixXd> rhs = svd.matrixU.transpose() * snaps.block(0, Nt - 1, 4 * Np, 1);
+		svd.matrixU.clear();
+		snaps.clear();
+		SharedMatrix<MatrixXcd> rhsZ = rhs.cast<std::complex<double> >();
 
-		//BLACS::COMM_ACTIVE.Barrier();
+		BLACS::COMM_ACTIVE.Barrier();
 
-		//if (ROOT)
-		//	cout << "rhs is computed" << endl << flush;
-		//cout << rhsZ;
-
-		//rhsZ.gather(0);
-		//if (ROOT)
-		//{
-		//	MatrixXcd Mtest(6, 1);
-		//	Mtest <<
-		//		complex<double>(-2302.4169337882709, 0),
-		//		complex<double>(-19.085675388167118, 0),
-		//		complex<double>(-2.2737367544323206e-013, 0),
-		//		complex<double>(-2.8421709430404007e-013, 0),
-		//		complex<double>(-8.5265128291212022e-014, 0),
-		//		complex<double>(-5.6843418860808015e-014, 0);
-
-		//	assert(rhsZ.global_matrix == Mtest && "Matrix RHS is different");
-		//}
-		//rhsZ.global_matrix.resize(0, 0);
-
-		//ScaSolve<MatrixXcd> solver(X, rhsZ, peigen::svd);
-		//if (ROOT)
-		//{
-		//	cout << "HERE COMES solution is computed" << endl << flush;
-		//}
-		//cout << solver.solution << endl;
-
-		//solver.solution.gather(0);
-		//if (ROOT)
-		//{
-		//	MatrixXcd Mtest(6, 1);
-		//	Mtest <<
-		//		complex<double>(1096070658.1017988, -1322.9523436264617),
-		//		complex<double>(1096070658.1017988, 1322.9523435911988),
-		//		complex<double>(1.3694775963610608e-011, -7.9879698252414504e-029),
-		//		complex<double>(-9.2969462508485929e-012, 5.540911226960229e-029),
-		//		complex<double>(7.2585917425865843e-012, -4.3740644386348342e-029),
-		//		complex<double>(-5.6843418860808015e-014, 0);
-
-		//	assert(solver.solution.global_matrix == Mtest && "Weights solution is different");
-		//}
-		//solver.solution.global_matrix.resize(0, 0);
-		//
-
-		//if (ROOT)
-		//{
-		//	cout << "X * w" << endl << flush;
-		//}
-		//SharedMatrix<MatrixXcd> p1 = X * solver.solution;
-		//cout << p1 << endl;
-
-		//if (ROOT)
-		//{
-		//	cout << "U' * Slast" << endl << flush;
-		//}
-		//SharedMatrix<MatrixXd> p2 = svd.matrixU.transpose() * snaps.block(0, Nt - 1, 4 * Np, 1);
-		//svd.matrixU.clear();
-		//snaps.clear();
-		//cout << p2 << endl;
+		if (ROOT)
+			cout << "rhs is computed" << endl << flush;
+		cout << rhsZ;
 
 
-		//if (ROOT)
-		//{
-		//	cout << "RESIDUALS" << endl << flush;
-		//}
-		//SharedMatrix<MatrixXcd> r = p1;
-		//r.local_matrix -= p2.cast<std::complex<double> >().local_matrix;
-		//cout << r << endl;
-		//
+		ScaSolve<MatrixXcd> solver(X, rhsZ, peigen::svd);
+		if (ROOT)
+		{
+			cout << "HERE COMES solution is computed" << endl << flush;
+		}
+		cout << solver.solution << endl;
+
+		
+
+		if (ROOT)
+		{
+			cout << "X * w" << endl << flush;
+		}
+		SharedMatrix<MatrixXcd> p1 = X * solver.solution;
+		cout << p1 << endl;
+
+		if (ROOT)
+		{
+			cout << "U' * Slast" << endl << flush;
+		}
+		SharedMatrix<MatrixXd> p2 = svd.matrixU.transpose() * snaps.block(0, Nt - 1, 4 * Np, 1);
+		svd.matrixU.clear();
+		snaps.clear();
+		cout << p2 << endl;
 
 
-		//SharedMatrix<MatrixXcd> Modes = svd.matrixU.cast<std::complex<double> >() * X;
-
-		//
-
-		//// Each process gets the full, global weighting vector
-		//for (int proc = 0; proc < BLACS::grid_rows*BLACS::grid_cols; proc++)
-		//{
-		//	solver.solution.gather(proc);
-		//}
-
-		///*if (ROOT)
-		//	cout << "Details for solution " << solver.solution.global_matrix.rows() << endl << flush;
-		//	*/
-		//BLACS::COMM_ACTIVE.Barrier();
-
-		///*
-		//if (ROOT)
-		//	cout << "Details for Modes " << endl << flush;
-		//Modes.printDetails();
-		//*/
-		//BLACS::COMM_ACTIVE.Barrier();
+		if (ROOT)
+		{
+			cout << "RESIDUALS" << endl << flush;
+		}
+		SharedMatrix<MatrixXcd> r = p1;
+		r.local_matrix -= p2.cast<std::complex<double> >().local_matrix;
+		cout << r << endl;
+		
 
 
-		//MatrixXcd weight = MatrixXcd::Zero(Modes.local_matrix.cols(), Modes.local_matrix.cols());
-		//for (int i = 0; i < Modes.local_matrix.cols(); i++)
-		//{
-		//	int index = i % Modes.cblock() + (floor(i / Modes.cblock())*BLACS::grid_cols + BLACS::mycol) * Modes.cblock();
-		//	//cout << "(" << BLACS::myrank << ")" << i << " " << index << endl;
-		//	weight(i, i) = solver.solution.global_matrix(index);
-		//}
+		SharedMatrix<MatrixXcd> Modes = svd.matrixU.cast<std::complex<double> >() * X;
 
-		////cout << "(" << BLACS::myrank << ")" << endl;
+		
 
-		//Modes.local_matrix = Modes.local_matrix * weight;
+		// Each process gets the full, global weighting vector
+		for (int proc = 0; proc < BLACS::grid_rows*BLACS::grid_cols; proc++)
+		{
+			solver.solution.gather(proc);
+		}
 
-		//if (ROOT)
-		//{
-		//	cout << "HERE COME the modes" << endl << flush;
-		//}
+		/*if (ROOT)
+			cout << "Details for solution " << solver.solution.global_matrix.rows() << endl << flush;
+			*/
+		BLACS::COMM_ACTIVE.Barrier();
+
+		/*
+		if (ROOT)
+			cout << "Details for Modes " << endl << flush;
+		Modes.printDetails();
+		*/
+		BLACS::COMM_ACTIVE.Barrier();
+
+
+		MatrixXcd weight = MatrixXcd::Zero(Modes.local_matrix.cols(), Modes.local_matrix.cols());
+		for (int i = 0; i < Modes.local_matrix.cols(); i++)
+		{
+			int index = i % Modes.cblock() + (floor(i / Modes.cblock())*BLACS::grid_cols + BLACS::mycol) * Modes.cblock();
+			//cout << "(" << BLACS::myrank << ")" << i << " " << index << endl;
+			weight(i, i) = solver.solution.global_matrix(index);
+		}
+
+		//cout << "(" << BLACS::myrank << ")" << endl;
+
+		Modes.local_matrix = Modes.local_matrix * weight;
+
+		if (ROOT)
+		{
+			cout << "HERE COME the modes" << endl << flush;
+		}
+		cout << Modes;
+
+		Modes.clear();
+
+		if (ROOT)
+			cout << "HERE COMES Modes... Nah just kidding, Modes is just way too big" << endl << flush;
 		//cout << Modes;
-
-		//Modes.clear();
-
-		//if (ROOT)
-		//	cout << "HERE COMES Modes... Nah just kidding, Modes is just way too big" << endl << flush;
-		////cout << Modes;
-		//prof.toc("LinearSolve");
+		prof.toc("LinearSolve");
 		/////**************************************************************************************************/
 		/////*------------------------------      /DO A LINEAR SYSTEM SOLVE      -----------------------------*/
 		/////**************************************************************************************************/
