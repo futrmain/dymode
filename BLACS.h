@@ -5,6 +5,8 @@
 #ifdef _WIN32 /* Win32 or Win64 environment */
 #define numroc_ NUMROC
 #define descinit_ DESCINIT
+#define chk1mat_ CHK1MAT
+#define pchk2mat_ PCHK2MAT
 #endif 
 
 namespace peigen
@@ -29,7 +31,6 @@ namespace peigen
 			void chk1mat_(const int*, const int*, const int*, const int*, const int*, const int*, int*, const int*, int*);
 			void pchk2mat_(const int*, const int*, const int*, const int*, const int*, const int*, int*, const int*, const int*, const int*, const int*, const int*, const int*, const int*, int*, const int*, const int*, int*, const int*,  int*);
 
-
 			inline int indxg2l(int gidx, int sblock, int nprocs)
 			{
 				return sblock*floor(gidx / (sblock*nprocs)) + gidx % sblock;
@@ -51,8 +52,8 @@ namespace peigen
 			void pdpotrf_(char*, int*, double*,
 				int*, int*, int*, int*);
 
-			void descinit_( int *, int *, int *, int *, int *, int *, int *,
-				int *, int *, int *);
+			void descinit_( int * DESC, int *M, int *N, int *MB, int *NB, int *IRSRC, int *ICSRC,
+				int *ICTXT, int *LLD, int *INFO);
 
 			void Cdgsum2d( int icontxt, char *scope, char *top, int m, int n, double *A, int lda, int rdest, int cdest );
 		}
