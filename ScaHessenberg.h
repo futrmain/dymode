@@ -10,65 +10,94 @@ namespace peigen
 	protected:
 		typedef typename MatrixType::Scalar Scalar;
 
-	public:
-		SharedMatrix<MatrixType> H, Q;
+	private:
+		void computeQ();
+		void computeH();
 
-		ScaHessenberg<MatrixType>(SharedMatrix<MatrixType> A);
+
+	public:
+		SharedMatrix<MatrixType> Hessenberg;
+		SharedMatrix<MatrixType> Q;
+		MatrixType tau;
+		ScaHessenberg<MatrixType>(const SharedMatrix<MatrixType>& A, const bool computeMatrixQ = true);
+
+		SharedMatrix<MatrixType>&  matrixH() const { return Hessenberg; }
+		SharedMatrix<MatrixType>&  matrixQ() const { return Q; }
 	};
 
 	template <typename MatrixType>
-	ScaHessenberg<MatrixType>::ScaHessenberg(SharedMatrix<MatrixType> A) : Q(SharedMatrix<MatrixType>(A.rows(), A.rows(), 'i', A.rblock(), A.cblock()))
+	ScaHessenberg<MatrixType>::ScaHessenberg(const SharedMatrix<MatrixType>& A, const bool computeMatrixQ = true) : Hessenberg(A), tau(MatrixType(A.rows(), 1))
 	{
-		assert(A.rows() == A.cols() && "CALLING EIGEN SOLVER ON NON SQUARE MATRIX");
+		assert(A.rows() == A.cols() && "CALLING EIGEN SOLVER ON NON SQUARE MATRIX");// FIXME Maybe this is valid for just Hessenberg?
 
-		/*Step 1: Form H*/
-
-		H = A;
-		const int n = H.rows();
 		int info;
-
-		int ilo = 1;
-		int ihi = n;
-
 		MatrixType work(1, 1);
-		MatrixType tau(n, 1);
 
-		PBLAS::pxgehrd(n, /*ilo*/ ilo, /*ihi*/ ihi, H.localData(), H.i, H.j, H.descriptor(), tau.data(), work.data(), /*lwork*/ -1, &info);
-
-		//if (BLACS::myrank == 0)
-		//std::cout << "SIZE FOR HESSENBERG, lwork: " << work(0, 0) << std::endl;
-
-		work.resize(work(0, 0), 1);
-		//tau.resize(tau(0, 0), 1);
-
-		PBLAS::pxgehrd(n, /*ilo*/ ilo, /*ihi*/ ihi, H.localData(), H.i, H.j, H.descriptor(), tau.data(), work.data(), /*lwork*/ work.size(), &info);
-
-		if (info!=0)
-			std::cout << "(" << BLACS::myrank << ") Hessenberg returned " << info << std::endl;
-
-
-
-		/*Step 2: Form Q*/
-
-		//Q = SharedMatrix<MatrixType>(n, n, 'i', H.rblock(), H.cblock());
-		PBLAS::pxormhr('R', 'N', n, n, 1, n, H.localData(), H.i, H.j, H.descriptor(), tau.data(), Q.localData(), Q.i, Q.j, Q.descriptor(), work.data(), -1, &info);
-
-		if (BLACS::myrank == 0)
-			std::cout << "SIZE FOR ORMHR, lwork: " << work(0, 0) << std::endl;
-		work.resize(work(0, 0), 1);
-
-		PBLAS::pxormhr('R', 'N', n, n, 1, n, H.localData(), H.i, H.j, H.descriptor(), tau.data(), Q.localData(), Q.i, Q.j, Q.descriptor(), work.data(), work.size(), &info);
-
-
+		PBLAS::pxgehrd(Hessenberg.rows(), /*ilo*/ Hessenberg.x, /*ihi*/ Hessenberg.y, Hessenberg.localData(), Hessenberg.i, Hessenberg.j, Hessenberg.descriptor(), tau.data(), work.data(), /*lwork*/ -1, &info);
 		if (info != 0)
-		std::cout << "(" << BLACS::myrank << ") Q returned " << info << std::endl;
+			std::cout << "(" << BLACS::myrank << ") " << "had a problem querying work space for Hessenberg decomposition, return value was " << info << endl;
 
-		/*Step 3: Remove values below subdiagonal, they have been used to form Q*/
+		work.resize(work(0, 0), 1);
+
+		PBLAS::pxgehrd(Hessenberg.rows(), /*ilo*/ Hessenberg.x, /*ihi*/ Hessenberg.y, Hessenberg.localData(), Hessenberg.i, Hessenberg.j, Hessenberg.descriptor(), tau.data(), work.data(), /*lwork*/ work.size(), &info);
+		if (info != 0)
+			std::cout << "(" << BLACS::myrank << ") " << "had a problem computing Hessenberg decomposition, return value was " << info << endl; 
+
+		if (computeMatrixQ == true)
+		{	// ComputeQ needs to be called before computeH, since the latter destroys information situated in H needed to form Q
+			computeQ();
+		}
+
+		computeH();
+	}
+
+	template <typename MatrixType>
+	void ScaHessenberg<MatrixType>::computeH()
+	{
+		SharedMatrix<MatrixType>& H = Hessenberg;
+
+		//Remove values below subdiagonal, they contain information relative to Q
 		for (int r = 2; r < H.rows(); ++r)
+		{
 			for (int c = 0; c < r - 1; ++c)
+			{
 				if ((BLACS::myrow == BLACS::indxg2p(r, H.rblock(), BLACS::grid_rows)) && (BLACS::mycol == BLACS::indxg2p(c, H.cblock(), BLACS::grid_cols)))
 					H.local_matrix(BLACS::indxg2l(r, H.rblock(), BLACS::grid_rows), BLACS::indxg2l(c, H.cblock(), BLACS::grid_cols)) = 0;
+			}
+		}
 	}
+
+	template <typename MatrixType>
+	void ScaHessenberg<MatrixType>::computeQ()
+	{
+		const int n = Hessenberg.rows();
+		int info;
+
+		/*if (BLACS::myrank == 0)
+			std::cout << "tau on entry to matrixQ(): " << endl << tau << std::endl << endl;*/
+
+		// Initialize Q with Identity matrix
+		Q = SharedMatrix<MatrixType>(n, n, 'i', Hessenberg.rblock(), Hessenberg.cblock());
+
+		MatrixType work(1, 1);
+
+		PBLAS::pxormhr('R', 'N', Q.rows(), Q.cols(), /*ilo*/ Hessenberg.x, /*ihi*/ Hessenberg.y, Hessenberg.localData(), Hessenberg.i, Hessenberg.j, Hessenberg.descriptor(),
+			tau.data(), Q.localData(), Q.i, Q.j, Q.descriptor(), work.data(), -1, &info);
+
+		if (info != 0)
+			std::cout << "(" << BLACS::myrank << ") " << "had a problem querying work space to compute Q from the Hessenberg decomposition, return value was " << info << endl;
+
+		//if (BLACS::myrank == 0)
+		//	std::cout << "SIZE FOR ORMHR, lwork: " << work(0, 0) << std::endl;
+		work.resize(work(0, 0), 1);
+
+		PBLAS::pxormhr('R', 'N', Q.rows(), Q.cols(), /*ilo*/ Hessenberg.x, /*ihi*/ Hessenberg.y, Hessenberg.localData(), Hessenberg.i, Hessenberg.j, Hessenberg.descriptor(),
+			tau.data(), Q.localData(), Q.i, Q.j, Q.descriptor(), work.data(), work.size(), &info);
+		
+		if (info != 0)
+			std::cout << "(" << BLACS::myrank << ") " << "had a problem computing Q from the Hessenberg decomposition, return value was " << info << endl;
+	}
+
 
 }	// end namespace peigen
 #endif // PEIGEN_SCAHESSENBERG_H
