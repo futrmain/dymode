@@ -288,96 +288,34 @@ int main(int argc, char* argv[])
 
 		BLACS::COMM_ACTIVE.Barrier();
 
-		if (ROOT)
-			cout << "rhs is computed" << endl << flush;
-		cout << rhsZ;
-
-
 		ScaSolve<MatrixXcd> solver(X, rhsZ, peigen::pxgesv);
+
 		if (ROOT)
 		{
-			cout << "HERE COMES solution is computed" << endl << flush;
+			cout << "HERE COME the solution" << endl << flush;
 		}
-		cout << solver.solution << endl;
-
+		cout << solver.solution;
 		
+		cout << "Residual from the system solve: " << solver.residual(X, rhsZ) << endl << flush;
 
-		if (ROOT)
-		{
-			cout << "X * w" << endl << flush;
-		}
-		SharedMatrix<MatrixXcd> p1 = X * solver.solution;
-		cout << p1 << endl;
-
-		if (ROOT)
-		{
-			cout << "U' * Slast" << endl << flush;
-		}
-		SharedMatrix<MatrixXd> p2 = svd.matrixU.transpose() * snaps.block(0, Nt - 1, 4 * Np, 1);
-		svd.matrixU.clear();
-		snaps.clear();
-		cout << p2 << endl;
+		/////**************************************************************************************************/
+		/////*------------------------------      /DO A LINEAR SYSTEM SOLVE      -----------------------------*/
+		/////**************************************************************************************************/
 
 
-		if (ROOT)
-		{
-			cout << "RESIDUALS" << endl << flush;
-		}
-		SharedMatrix<MatrixXcd> r = p1;
-		r.local_matrix -= p2.cast<std::complex<double> >().local_matrix;
-		cout << r << endl;
-		
-
+		/////**************************************************************************************************/
+		/////*-----------------------------      APPLY WEIGHT TO THE MODES      ------------------------------*/
+		/////**************************************************************************************************/
 
 		SharedMatrix<MatrixXcd> Modes = svd.matrixU.cast<std::complex<double> >() * X;
 
+		Modes.ColScale(solver.solution);
+
 		
-
-		// Each process gets the full, global weighting vector
-		for (int proc = 0; proc < BLACS::grid_rows*BLACS::grid_cols; proc++)
-		{
-			solver.solution.gather(proc);
-		}
-
-		/*if (ROOT)
-			cout << "Details for solution " << solver.solution.global_matrix.rows() << endl << flush;
-			*/
-		BLACS::COMM_ACTIVE.Barrier();
-
-		/*
-		if (ROOT)
-			cout << "Details for Modes " << endl << flush;
-		Modes.printDetails();
-		*/
-		BLACS::COMM_ACTIVE.Barrier();
-
-
-		MatrixXcd weight = MatrixXcd::Zero(Modes.local_matrix.cols(), Modes.local_matrix.cols());
-		for (int i = 0; i < Modes.local_matrix.cols(); i++)
-		{
-			int index = i % Modes.cblock() + (floor(i / Modes.cblock())*BLACS::grid_cols + BLACS::mycol) * Modes.cblock();
-			//cout << "(" << BLACS::myrank << ")" << i << " " << index << endl;
-			weight(i, i) = solver.solution.global_matrix(index);
-		}
-
-		//cout << "(" << BLACS::myrank << ")" << endl;
-
-		Modes.local_matrix = Modes.local_matrix * weight;
-
-		if (ROOT)
-		{
-			cout << "HERE COME the modes" << endl << flush;
-		}
-		cout << Modes;
-
-		Modes.clear();
-
-		if (ROOT)
-			cout << "HERE COMES Modes... Nah just kidding, Modes is just way too big" << endl << flush;
 		//cout << Modes;
 		prof.toc("LinearSolve");
 		/////**************************************************************************************************/
-		/////*------------------------------      /DO A LINEAR SYSTEM SOLVE      -----------------------------*/
+		/////*-----------------------------      /APPLY WEIGHT TO THE MODES      -----------------------------*/
 		/////**************************************************************************************************/
 
 		//BLACS::COMM_ACTIVE.Barrier();
