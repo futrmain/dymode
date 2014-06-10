@@ -14,8 +14,9 @@ namespace peigen
 
 		ScaSVD(SharedMatrix<MatrixType> M, bool computeU, bool computeVt);
 
-		MatrixType::RealScalar residual(SharedMatrix<MatrixType> original)
+		MatrixType::RealScalar residual(SharedMatrix<MatrixType> original, bool normalized = true)
 		{
+			SharedMatrix<MatrixType> A(original);
 			SharedMatrix<MatrixType> R(matrixU);
 
 			// Multiplication by diagonal elements
@@ -25,14 +26,19 @@ namespace peigen
 				R.local_matrix.col(j).noalias() = R.local_matrix.col(j) * singularValues(g, 0);
 			}
 
-			original.pgemm(1., R, matrixVt, -1.);
+			A.pgemm(1., R, matrixVt, -1.);
 
+			if (normalized == true)
+			{
+				// Seems to produce +Inf results
+				//A.local_matrix = A.local_matrix.array() / original.local_matrix.array();
+			}
 
 			//cout << "Residual MATRIX from SVD RESIDUAL(): " << endl << original << endl << flush;
 
 
 			// Compute local highest residual
-			return original.localBlock().cwiseAbs().maxCoeff();
+			return A.localBlock().cwiseAbs().maxCoeff();
 		}
 
 		MatrixType::RealScalar global_residual(SharedMatrix<MatrixType> original)
