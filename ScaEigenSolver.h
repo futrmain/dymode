@@ -25,8 +25,8 @@ namespace peigen
 
 		ScaEigenSolver<MatrixType>(const SharedMatrix<MatrixType>& A, const bool computeEigenVectors = true, const EigenMethod method = EigSchur);
 
-		inline ScaEigenSolver<MatrixType> eigenvectors() { return evectors; }
-		inline MatrixType eigenvalues() { return evalues; }
+		inline SharedMatrix<Matrix<complex<MatrixType::RealScalar>, Dynamic, Dynamic>> eigenVectors() { return evectors; }
+		inline Matrix<complex<MatrixType::RealScalar>, Dynamic, Dynamic> eigenValues() { return evalues; }
 		inline setMethod(const EigenMethod& method) { method_ = method };
 
 		MatrixType::RealScalar residual(SharedMatrix<MatrixType> original)
@@ -114,7 +114,7 @@ namespace peigen
 			evectors.global_matrix = eig.eigenvectors();
 		}
 
-		evectors.dispatch(0, evectors.rblock(), evectors.cblock());
+		evectors.dispatch(0, A.rblock(), A.cblock());
 		BLACS::COMM_ACTIVE.Bcast(evalues.data(), evalues.rows(), MPIType(), 0);
 
 
