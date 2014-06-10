@@ -3,7 +3,7 @@
 
 namespace peigen
 {
-	enum LinSolverName_t { Eigen = 0, pxgesv, pxgesvx, svd };
+	enum LinSolverName_t { Eigen = 0, pxgesv, pxgesvx, EigenSVD };
 
 	template <typename MatrixType>
 	class ScaSolve
@@ -19,6 +19,26 @@ namespace peigen
 			method = solver;
 			return *this;
 		}
+
+		MatrixType::RealScalar residual(SharedMatrix<MatrixType> A, SharedMatrix<MatrixType> B)
+		{
+			SharedMatrix<MatrixType> R(B);
+
+			R.pgemm(1., A, solution, -1.);
+
+			// Compute local highest residual
+			return R.localBlock().cwiseAbs().maxCoeff();
+		}
+
+		MatrixType::RealScalar global_residual(SharedMatrix<MatrixType> original)
+		{
+			double r_loc = residual(original);
+			double r;
+
+			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
+
+			return r;
+		}
 	};
 
 	template <typename MatrixType>
@@ -27,10 +47,19 @@ namespace peigen
 
 		switch (method)
 		{
+		// FIXME missing implementations for comparison
+		case Eigen:
+		{
+					  assert(0 && "LINEAR SOLVER: Solving with Eigen has nor been implemented yet.");
+		}
+		case pxgesvx:
+		{
+					  assert(0 && "LINEAR SOLVER: Solving with pxgesvx has nor been implemented yet.");
+		}
 		case pxgesv:
 		{
-					   assert((A.rblock() == A.cblock()) && "EIGEN SOLVER: 'A' must be distributed using a square block-cyclic distribution");
-					   assert((A.rblock() == B.rblock()) && "EIGEN SOLVER: 'A' and 'B' must have the same row-block size");
+					   assert((A.rblock() == A.cblock()) && "LINEAR SOLVER: 'A' must be distributed using a square block-cyclic distribution");
+					   assert((A.rblock() == B.rblock()) && "LINEAR SOLVER: 'A' and 'B' must have the same row-block size");
 
 					   // size described in MKL manual, don't know what +rblock is for
 					   int ipiv[matrixLU.local_matrix.rows() + matrixLU.rblock()];
@@ -54,7 +83,7 @@ namespace peigen
 
 					   break;
 		}
-		case svd:
+		case EigenSVD:
 		{
 					matrixLU.gather(0);
 					solution.gather(0);
