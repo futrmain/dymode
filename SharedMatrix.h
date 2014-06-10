@@ -97,6 +97,7 @@ namespace peigen
 
 
 		// FIXME this should account for transpose flags somehow
+		// Also loops here are ugly
 		MatrixType localBlock()
 		{
 			int i_loc = 0;
@@ -116,6 +117,76 @@ namespace peigen
 				--lj_loc;
 
 			return this->local_matrix.block(i_loc, j_loc, li_loc, lj_loc);
+		}
+
+		// FIXME peigen needs a more elegant asDiagonal system to do this type of operations
+		/**
+		* Multiply (scale) the columns of the local matrix by given coefficients.
+		*/
+		SharedMatrix<MatrixType> & localColScale(MatrixType factors)
+		{
+			assert((factors.cols() == 1 && factors.rows() == local_matrix.cols()) || (factors.rows() == 1 && factors.cols() == local_matrix.cols()) && "The size of factors does not match the number of columns in local_matrix.");
+
+			local_matrix = local_matrix * factors.asDiagonal();
+
+			return *this;
+		}
+
+		// FIXME peigen needs a more elegant asDiagonal system to do this type of operations
+		/**
+		* Multiply (scale) the columns of the whole matrix when all the coefficients are known by each process.
+		*/
+		SharedMatrix<MatrixType> & ColScale(MatrixType factors)
+		{
+			assert((factors.cols() == 1 && factors.rows() == ncols) || (factors.rows() == 1 && factors.cols() == ncols) && "The size of factors does not match the number of columns in the global matrix.");
+
+			// Fetch the right coefficient for each column and multiply
+			for (int j = 0; j < local_matrix.cols(); ++j)
+			{
+				const int g = BLACS::indxl2g(j, evectors.cblock(), BLACS::grid_cols, BLACS::mycol);
+				local_matrix.col(j).noalias() = local_matrix.col(j) * factors(g);
+			}
+
+			return *this;
+		}
+
+		// FIXME peigen needs a more elegant asDiagonal system to do this type of operations
+		/**
+		* Multiply (scale) the columns of the whole matrix when the coefficients are distributed.
+		*/
+		SharedMatrix<MatrixType> & ColScale(SharedMatrix<MatrixType> factors)
+		{
+			assert((factors.cols() == 1 && factors.rows() == ncols) || (factors.rows() == 1 && factors.cols() == ncols) && "The size of factors does not match the number of columns in the global matrix.");
+
+			// Make sure factors is a vertical vector
+			if (factors.cols() > 1)
+				factors.transpose();
+
+
+			// Step 1: Form D := diag(factors)
+			// Replicate factors horizontally
+			SharedMatrix<MatrixType> D = factors * SharedMatrix<MatrixType>(1, ncols, 'o', 1, ncblock);
+
+			// Nullify non-diagonal coefficients
+			for (int i = 0; i < D.local_matrix.rows(); ++i)
+			{
+				const int gi = BLACS::indxl2g(i, D.rblock(), BLACS::grid_rows, BLACS::myrow);
+				for (int j = 0; j < D.local_matrix.cols(); ++j)
+				{
+					const int gj = BLACS::indxl2g(j, D.cblock(), BLACS::grid_cols, BLACS::mycol);
+
+					if (gi != gj)
+					{
+						D.local_matrix(i, j) = 0;
+					}
+				}
+			}
+
+			// Step 2: Multiply *this by D
+			*this = *this * D;
+			
+			std::cout << "DIAGONAL MATRIX ***~~~****~~~****~~" << std::endl << *this << std::endl << std::endl;
+			return *this;
 		}
 
 
