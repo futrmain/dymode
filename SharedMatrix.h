@@ -185,7 +185,7 @@ namespace peigen
 			// Step 2: Multiply *this by D
 			*this = *this * D;
 			
-			std::cout << "DIAGONAL MATRIX ***~~~****~~~****~~" << std::endl << *this << std::endl << std::endl;
+			//std::cout << "DIAGONAL MATRIX ***~~~****~~~****~~" << std::endl << *this << std::endl << std::endl;
 			return *this;
 		}
 

@@ -165,9 +165,9 @@ namespace peigen
 		}
 
 		/////////////////////////				   P*GESVX  				//////////////////////////////
-		inline void pxgesvx(char fact, char trans, int n, int nrhs, std::complex<double> *a, int ia, int ja, int *desca, std::complex<double> *af, int iaf, int jaf, int *descaf, int *ipiv, char *equed, double *r, double *c, std::complex<double> *b, int ib, int jb, int *descb, std::complex<double> *x, int ix, int jx, int *descx, double *rcond, double *ferr, double *berr, std::complex<double> *work, int lwork, double *rwork, int lrwork, int *info)
+		inline void pxgesvx(char fact, char trans, int n, int nrhs, std::complex<double> *a, int ia, int ja, int *desca, std::complex<double> *af, int iaf, int jaf, int *descaf, int *ipiv, char equed, double *r, double *c, std::complex<double> *b, int ib, int jb, int *descb, std::complex<double> *x, int ix, int jx, int *descx, double *rcond, double *ferr, double *berr, std::complex<double> *work, int lwork, double *rwork, int lrwork, int *info)
 		{
-			pzgesvx_(&fact, &trans, &n, &nrhs, a, &ia, &ja, desca, af, &iaf, &jaf, descaf, ipiv, equed, r, c, b, &ib, &jb, descb, x, &ix, &jx, descx, rcond, ferr, berr, work, &lwork, rwork, &lrwork, info);
+			pzgesvx_(&fact, &trans, &n, &nrhs, a, &ia, &ja, desca, af, &iaf, &jaf, descaf, ipiv, &equed, r, c, b, &ib, &jb, descb, x, &ix, &jx, descx, rcond, ferr, berr, work, &lwork, rwork, &lrwork, info);
 		}
 
 		
