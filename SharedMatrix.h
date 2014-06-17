@@ -63,7 +63,7 @@ namespace peigen
 		void gather(int sink);
 		inline MPI::Datatype MPIType();
 
-		// Classic call to ScaLapack pxgemm
+		// Classic call to ScaLapack pxgemm, returns alpha*AB + beta*(*this)
 		void pgemm(double alpha, SharedMatrix<MatrixType> A, SharedMatrix<MatrixType> B, double beta)
 		{
 			// Allocate result matrix
