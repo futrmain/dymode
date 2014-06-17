@@ -51,10 +51,58 @@ namespace peigen
 		case Eigen:
 		{
 					  assert(0 && "LINEAR SOLVER: Solving with Eigen has nor been implemented yet.");
+					  break;
 		}
 		case pxgesvx:
 		{
-					  assert(0 && "LINEAR SOLVER: Solving with pxgesvx has nor been implemented yet.");
+						assert((A.rblock() == A.cblock()) && "LINEAR SOLVER: 'A' must be distributed using a square block-cyclic distribution");
+						assert((A.rblock() == B.rblock()) && "LINEAR SOLVER: 'A' and 'B' must have the same row-block size");
+
+						// size described in MKL manual, don't know what +rblock is for
+						int ipiv[matrixLU.local_matrix.rows() + matrixLU.rblock()];
+						ipiv[0] = 0; // initialize to zero to avoid "uninitialized memory access" flooding
+						int desc[9];	// according to IBM doc, desc is modified on exit, and contains info for ipiv instead, so we pass a copy that can be modified safely
+						std::copy(matrixLU.descriptor(), matrixLU.descriptor() + 9, desc);
+
+						//A.printDetails();
+						//B.printDetails();
+
+						int info = 0;
+
+						SharedMatrix<MatrixType> Af(A);
+						SharedMatrix<MatrixType> x(B);
+						Matrix<MatrixType::RealScalar, Dynamic, 1> r(matrixLU.local_matrix.rows(), 1);
+						Matrix<MatrixType::RealScalar, Dynamic, 1> c(matrixLU.local_matrix.cols(), 1);
+
+						MatrixType::RealScalar rcond;
+						Matrix<MatrixType::RealScalar, Dynamic, 1> ferr(solution.local_matrix.cols(), 1);
+						Matrix<MatrixType::RealScalar, Dynamic, 1> berr(solution.local_matrix.cols(), 1);
+
+						MatrixType work(36, 1);
+						Matrix<MatrixType::RealScalar, Dynamic, 1> rwork(12, 1);
+
+						PBLAS::pxgesvx('E', 'N', matrixLU.x, solution.cols(),
+							matrixLU.localData(), matrixLU.i, matrixLU.j, matrixLU.desc,
+							Af.localData(), Af.i, Af.j, Af.desc,
+							ipiv, 'N', r.data(), c.data(),
+							solution.localData(), solution.i, solution.j, solution.desc,
+							x.localData(), x.i, x.j, x.desc,
+							&rcond, ferr.data(), berr.data(),
+							work.data(), 36, rwork.data(), 12, &info);
+
+
+						if (BLACS::myrank == 0)
+							std::cout << "lwork is " << work(0,0) << ", lrwork is: " << rwork(0,0) << ", info is: " << info << std::endl;
+
+						if (BLACS::myrank == 0)
+							std::cout << "rcond is " << rcond << ", ferr is: " << ferr(0, 0) << ", berr is: " << berr(0,0) << std::endl;
+
+						if (BLACS::myrank == 0)
+							std::cout << "Solved a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesvx. Return code was: " << info << std::endl;
+
+						solution = x;
+
+						break;
 		}
 		case pxgesv:
 		{
