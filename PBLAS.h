@@ -192,24 +192,24 @@ namespace peigen
 		}
 
 		/////////////////////////				   P*GESVX  				//////////////////////////////
-		inline void pxgesvx(char fact, char trans, int n, int nrhs, float *a, int ia, int ja, int *desca, float *af, int iaf, int jaf, int *descaf, int *ipiv, char equed, float *r, float *c, float *b, int ib, int jb, int *descb, float *x, int ix, int jx, int *descx, float *rcond, float *ferr, float *berr, float *work, int lwork, void *iwork, int liwork, int *info)
+		inline void pxgesvx(char fact, char trans, int n, int nrhs, float *a, int ia, int ja, int *desca, float *af, int iaf, int jaf, int *descaf, int *ipiv, char equed, float *r, float *c, float *b, int ib, int jb, int *descb, float *x, int ix, int jx, int *descx, float *rcond, float *ferr, float *berr, float *work, int lwork, int *iwork, int liwork, int *info)
 		{
-			psgesvx_(&fact, &trans, &n, &nrhs, a, &ia, &ja, desca, af, &iaf, &jaf, descaf, ipiv, &equed, r, c, b, &ib, &jb, descb, x, &ix, &jx, descx, rcond, ferr, berr, work, &lwork, (int*)iwork, &liwork, info);
+			psgesvx_(&fact, &trans, &n, &nrhs, a, &ia, &ja, desca, af, &iaf, &jaf, descaf, ipiv, &equed, r, c, b, &ib, &jb, descb, x, &ix, &jx, descx, rcond, ferr, berr, work, &lwork, iwork, &liwork, info);
 		}
 
-		inline void pxgesvx(char fact, char trans, int n, int nrhs, double *a, int ia, int ja, int *desca, double *af, int iaf, int jaf, int *descaf, int *ipiv, char equed, double *r, double *c, double *b, int ib, int jb, int *descb, double *x, int ix, int jx, int *descx, double *rcond, double *ferr, double *berr, double *work, int lwork, void *iwork, int liwork, int *info)
+		inline void pxgesvx(char fact, char trans, int n, int nrhs, double *a, int ia, int ja, int *desca, double *af, int iaf, int jaf, int *descaf, int *ipiv, char equed, double *r, double *c, double *b, int ib, int jb, int *descb, double *x, int ix, int jx, int *descx, double *rcond, double *ferr, double *berr, double *work, int lwork, int *iwork, int liwork, int *info)
 		{
-			pdgesvx_(&fact, &trans, &n, &nrhs, a, &ia, &ja, desca, af, &iaf, &jaf, descaf, ipiv, &equed, r, c, b, &ib, &jb, descb, x, &ix, &jx, descx, rcond, ferr, berr, work, &lwork, (int*)iwork, &liwork, info);
+			pdgesvx_(&fact, &trans, &n, &nrhs, a, &ia, &ja, desca, af, &iaf, &jaf, descaf, ipiv, &equed, r, c, b, &ib, &jb, descb, x, &ix, &jx, descx, rcond, ferr, berr, work, &lwork, iwork, &liwork, info);
 		}
 
-		inline void pxgesvx(char fact, char trans, int n, int nrhs, std::complex<float> *a, int ia, int ja, int *desca, std::complex<float> *af, int iaf, int jaf, int *descaf, int *ipiv, char equed, float *r, float *c, std::complex<float> *b, int ib, int jb, int *descb, std::complex<float> *x, int ix, int jx, int *descx, float *rcond, float *ferr, float *berr, std::complex<float> *work, int lwork, void *rwork, int lrwork, int *info)
+		inline void pxgesvx(char fact, char trans, int n, int nrhs, std::complex<float> *a, int ia, int ja, int *desca, std::complex<float> *af, int iaf, int jaf, int *descaf, int *ipiv, char equed, float *r, float *c, std::complex<float> *b, int ib, int jb, int *descb, std::complex<float> *x, int ix, int jx, int *descx, float *rcond, float *ferr, float *berr, std::complex<float> *work, int lwork, float *rwork, int lrwork, int *info)
 		{
-			pcgesvx_(&fact, &trans, &n, &nrhs, a, &ia, &ja, desca, af, &iaf, &jaf, descaf, ipiv, &equed, r, c, b, &ib, &jb, descb, x, &ix, &jx, descx, rcond, ferr, berr, work, &lwork, (float*)rwork, &lrwork, info);
+			pcgesvx_(&fact, &trans, &n, &nrhs, a, &ia, &ja, desca, af, &iaf, &jaf, descaf, ipiv, &equed, r, c, b, &ib, &jb, descb, x, &ix, &jx, descx, rcond, ferr, berr, work, &lwork, rwork, &lrwork, info);
 		}
 
-		inline void pxgesvx(char fact, char trans, int n, int nrhs, std::complex<double> *a, int ia, int ja, int *desca, std::complex<double> *af, int iaf, int jaf, int *descaf, int *ipiv, char equed, double *r, double *c, std::complex<double> *b, int ib, int jb, int *descb, std::complex<double> *x, int ix, int jx, int *descx, double *rcond, double *ferr, double *berr, std::complex<double> *work, int lwork, void *rwork, int lrwork, int *info)
+		inline void pxgesvx(char fact, char trans, int n, int nrhs, std::complex<double> *a, int ia, int ja, int *desca, std::complex<double> *af, int iaf, int jaf, int *descaf, int *ipiv, char equed, double *r, double *c, std::complex<double> *b, int ib, int jb, int *descb, std::complex<double> *x, int ix, int jx, int *descx, double *rcond, double *ferr, double *berr, std::complex<double> *work, int lwork, double *rwork, int lrwork, int *info)
 		{
-			pzgesvx_(&fact, &trans, &n, &nrhs, a, &ia, &ja, desca, af, &iaf, &jaf, descaf, ipiv, &equed, r, c, b, &ib, &jb, descb, x, &ix, &jx, descx, rcond, ferr, berr, work, &lwork, (double*)rwork, &lrwork, info);
+			pzgesvx_(&fact, &trans, &n, &nrhs, a, &ia, &ja, desca, af, &iaf, &jaf, descaf, ipiv, &equed, r, c, b, &ib, &jb, descb, x, &ix, &jx, descx, rcond, ferr, berr, work, &lwork, rwork, &lrwork, info);
 		}
 
 		

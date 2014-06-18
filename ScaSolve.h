@@ -5,6 +5,35 @@ namespace peigen
 {
 	enum LinSolverName_t { Eigen = 0, pxgesv, pxgesvx, EigenSVD };
 
+	template< typename MatrixType, bool isComplex = (is_same<MatrixType::Scalar, complex<float>>::value || is_same<MatrixType::Scalar, complex<double>>::value) >
+	class xwork 
+	{
+	private:
+		Matrix<int, Dynamic, 1> work;
+	public:
+		int* data() { return work.data(); }
+		int operator()(int i, int j) { return work(i, j); }
+		void resize(int x, int y) { work.resize(x, y); }
+		int rows() { return work.rows(); }
+		xwork() : work(Matrix<int, Dynamic, 1>(1, 1)) {}
+
+	};
+
+	template< typename MatrixType >
+	class xwork<MatrixType, true >
+	{
+	private:
+		typedef MatrixType::RealScalar RealScalar;
+		typedef MatrixType::Scalar Scalar;
+		Matrix<RealScalar, Dynamic, 1> work;
+	public:
+		Scalar* data() { return work.data(); }
+		Scalar operator()(int i, int j) { return work(i, j); }
+		void resize(int x, int y) { work.resize(x, y); }
+
+		xwork() : work(Matrix<Scalar, Dynamic, 1>(1, 1)) {}
+	};
+
 	template <typename MatrixType>
 	class ScaSolve
 	{
@@ -78,8 +107,9 @@ namespace peigen
 						Matrix<MatrixType::RealScalar, Dynamic, 1> ferr(solution.local_matrix.cols(), 1);
 						Matrix<MatrixType::RealScalar, Dynamic, 1> berr(solution.local_matrix.cols(), 1);
 
-						MatrixType work(36, 1);
-						Matrix<MatrixType::RealScalar, Dynamic, 1> rwork(12, 1);
+						MatrixType work(1, 1);
+						xwork<MatrixType> xspace;
+
 
 						PBLAS::pxgesvx('E', 'N', matrixLU.x, solution.cols(),
 							matrixLU.localData(), matrixLU.i, matrixLU.j, matrixLU.desc,
@@ -88,11 +118,23 @@ namespace peigen
 							solution.localData(), solution.i, solution.j, solution.desc,
 							x.localData(), x.i, x.j, x.desc,
 							&rcond, ferr.data(), berr.data(),
-							work.data(), 36, rwork.data(), 12, &info);
+							work.data(), -1, xspace.data(), -1, &info);
+
+						work.resize((int)work(0, 0), 1);
+						xspace.resize((int)xspace(0, 0), 1);
+
+						PBLAS::pxgesvx('E', 'N', matrixLU.x, solution.cols(),
+							matrixLU.localData(), matrixLU.i, matrixLU.j, matrixLU.desc,
+							Af.localData(), Af.i, Af.j, Af.desc,
+							ipiv, 'N', r.data(), c.data(),
+							solution.localData(), solution.i, solution.j, solution.desc,
+							x.localData(), x.i, x.j, x.desc,
+							&rcond, ferr.data(), berr.data(),
+							work.data(), work.rows(), xspace.data(), xspace.rows(), &info);
 
 
 						if (BLACS::myrank == 0)
-							std::cout << "lwork is " << work(0,0) << ", lrwork is: " << rwork(0,0) << ", info is: " << info << std::endl;
+							std::cout << "lwork is " << work(0, 0) << ", lrwork is: " << xspace(0,0) << ", info is: " << info << std::endl;
 
 						if (BLACS::myrank == 0)
 							std::cout << "rcond is " << rcond << ", ferr is: " << ferr(0, 0) << ", berr is: " << berr(0,0) << std::endl;
