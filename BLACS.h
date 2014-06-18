@@ -42,6 +42,7 @@ namespace peigen
 				return nprocs*sblock*(lidx/sblock) + lidx%sblock +  ((nprocs+iproc-0) % nprocs)*sblock ;
 			}
 
+			// returns the process row/column owing a particular global index
 			inline int indxg2p(int gidx, int sblock, int nprocs)
 			{
 				// FIXME: should be "isrc + (gidx/sblock) % nprocs"
