@@ -434,7 +434,39 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 
 
+		/////**************************************************************************************************/
+		/////*----------------------------------      Print light data      ----------------------------------*/
+		/////**************************************************************************************************/
+		
+		if (ROOT)
+		{
+			cout << "Printing spectrum...\t";
+			Matrix<double, Dynamic, 2, RowMajor> spectrum(Nt - 1, 2);
+			spectrum.col(0) = lambdas.real().cwiseQuotient(lambdas.cwiseAbs()).array().acos().matrix();
+			spectrum.col(1) = amplitudes.transpose();
 
+			std::ofstream s("spectrum.txt");
+			if (s.is_open())
+			{
+				s << spectrum << '\n';
+				s.close();
+			}
+			cout << "DONE." << endl;
+
+			cout << "Printing eigenvalues...\t";
+			std::ofstream l("eigenvalues.txt");
+			if (l.is_open())
+			{
+				l << lambdas << '\n';
+				l.close();
+			}
+			cout << "DONE." << endl;
+		}
+
+		/////**************************************************************************************************/
+		/////*----------------------------------      /Print light data      ---------------------------------*/
+		/////**************************************************************************************************/
+		
 		//BLACS::COMM_ACTIVE.Barrier();
 
 
