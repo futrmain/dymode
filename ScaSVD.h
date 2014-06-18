@@ -38,7 +38,7 @@ namespace peigen
 
 
 			// Compute local highest residual
-			return A.localBlock().cwiseAbs().maxCoeff();
+			return A.localBlock().cols() > 0 ? A.localBlock().cwiseAbs().maxCoeff() : -1;
 		}
 
 		MatrixType::RealScalar global_residual(SharedMatrix<MatrixType> original)
