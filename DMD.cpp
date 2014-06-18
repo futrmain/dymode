@@ -24,6 +24,7 @@
 #define USE_BOOST_CHRONO
 #include "tic-toc-profiler.hpp"
 
+#include "ColumnSquaredNorm.h"
 #endif
 
 
@@ -421,70 +422,12 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 		/////*------------------------------      Compute the mode's energy      -----------------------------*/
 		/////**************************************************************************************************/
-		//prof.tic("Energy");
-		//SharedMatrix<MatrixXd> amplitudes(1, Modes.cols(), 1, Modes.cblock());
+		prof.tic("Energy");
 
-		//amplitudes.local_matrix = Modes.local_matrix.colwise().squaredNorm();
-
-		//char scope[7] = { 'C', 'O', 'L', 'U', 'M', 'N', '\0' };
-		//char top[2] = { ' ', '\0' };
-		//// Sum the norm of columns by process column
-		//BLACS::Cdgsum2d(BLACS::ctxt, scope, top, 1, amplitudes.local_matrix.cols(), amplitudes.localData(), 1, -1, -1);
-
-		//// cout the amplitudes
-		//for (int rr = 0; rr<BLACS::grid_rows; rr++)
-		//{
-		//	for (int cc = 0; cc<BLACS::grid_cols; cc++)
-		//	{
-		//		//if((BLACS::myrow==rr) && (BLACS::mycol==cc))
-		//		//cout << "(" << BLACS::myrow << ","<<BLACS::mycol << ") " << amplitudes.local_matrix << flush;
-		//		BLACS::COMM_ACTIVE.Barrier();
-		//	}
-		//	//if(BLACS::myrank==0)
-		//	//cout << endl << flush;
-		//	BLACS::COMM_ACTIVE.Barrier();
-		//}
-
-		//// Gather the global amplitudes vector, on a row basis
-		//amplitudes.global_matrix.resize(1, amplitudes.cols());
-		//int ncols = Modes.cols();
-		//int modes_cblock = Modes.cblock();
-		//int offsetmpi = 0;
-		//for (int cc = 0; cc<BLACS::grid_cols; cc++)
-		//{
-		//	int n = BLACS::numroc_(&ncols, &modes_cblock, &cc, BLACS::iZERO, &(BLACS::grid_cols));
-		//	int pr = BLACS::Cblacs_pnum(BLACS::ctxt, BLACS::myrow, cc);
-		//	BLACS::COMM_ACTIVE.Irecv(amplitudes.globalData() + offsetmpi, n, MPI::DOUBLE, pr, pr);
-		//	//cout << BLACS::myrank <<" Irecv from " << pr << " for " << n << " values with offset"<<offsetmpi<<endl << flush;
-		//	offsetmpi += n;
-		//}
-
-
-		//for (int cc = 0; cc<BLACS::grid_cols; cc++)
-		//{
-		//	int pr = BLACS::Cblacs_pnum(BLACS::ctxt, BLACS::myrow, cc);
-		//	BLACS::COMM_ACTIVE.Send(amplitudes.localData(), amplitudes.local_matrix.cols(), MPI::DOUBLE, pr, BLACS::myrank);
-		//	//cout << BLACS::myrank <<" send " << ampl << " to " << pr << " for " << ampl.cols() << " values"<<endl << flush;
-		//}
-
-		///*for (int proc = 0; proc < BLACS::grid_rows*BLACS::grid_cols; proc++)
-		//{
-		//amplitudes.gather(proc);
-		//}*/
-
-		////BLACS::COMM_ACTIVE.Barrier();
-
-		//if (ROOT)
-		//	cout << "amplitudes are done" << endl << flush;
-
-		///*for(int rr = 0; rr<BLACS::grid_rows*BLACS::grid_cols; rr++)*/
-		//for (int rr = 0; rr<1; rr++)
-		//{
-		//	if (BLACS::myrank == rr)
-		//		cout << "(" << BLACS::myrank << ") " << amplitudes.global_matrix.transpose() << endl << flush;
-		//	BLACS::COMM_ACTIVE.Barrier();
-		//}
-		//prof.toc("Energy");
+		MatrixXd amplitudes = ColumnSquaredNorm(Modes);
+			if (BLACS::myrank == 0)
+				cout << amplitudes << endl << flush;
+		prof.toc("Energy");
 		/////**************************************************************************************************/
 		/////*-----------------------------      /Compute the mode's energy      -----------------------------*/
 		/////**************************************************************************************************/

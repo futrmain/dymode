@@ -38,6 +38,9 @@
 //#include <tchar.h>
 
 #include "Vandermonde.h"
+
+#include "ColumnSquaredNorm.h"
+
 #endif
 
 // TODO: reference additional headers your program requires here
