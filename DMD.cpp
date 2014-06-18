@@ -34,7 +34,7 @@
 #include "ScaSolve.h"
 
 #include "ScaEigenSolver.h"
-
+#include "Vandermonde.h"
 
 
 using namespace std;
@@ -162,6 +162,8 @@ int main(int argc, char* argv[])
 		//if (ROOT)
 		cout << "Residual from SVD: " << r_svd << endl << flush;
 
+		cout << "Residual GLOBAL from SVD: " << svd.global_residual(snaps.block(0, 0, 4 * Np, Nt - 1)) << endl << flush;
+
 		
 
 		prof.toc("SVD");
@@ -281,22 +283,109 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 		prof.tic("LinearSolve");
 		//cout << "(" << BLACS::myrank << ")" << endl;
-		SharedMatrix<MatrixXd> rhs = svd.matrixU.transpose() * snaps.block(0, Nt - 1, 4 * Np, 1);
+		SharedMatrix<MatrixXd> rhs = svd.matrixU.transpose() * snaps.block(0, 0/*Nt - 1*/, 4 * Np, 1);
 		svd.matrixU.clear();
 		snaps.clear();
 		SharedMatrix<MatrixXcd> rhsZ = rhs.cast<std::complex<double> >();
 
+		
+		
+		// Construct a system so that the weights will have to be in complex conjugate pairs
+		SharedMatrix<MatrixXd> System(X.rows(), X.cols(), X.rblock(), X.cblock());
+		for (int k = 0; k < lambdas.rows(); ++k)
+		{
+			// First item of a conjugate pair
+			if (lambdas(k, 0).imag() != 0)
+			{
+				if (BLACS::indxg2p(k, System.cblock(), BLACS::grid_cols) == BLACS::mycol)
+				{
+					int l = BLACS::indxg2l(k, System.cblock(), BLACS::grid_cols);
+					System.local_matrix.col(l) = 2 * X.local_matrix.col(l).real();
+				}
+				++k;
+				// Second item of a conjugate pair
+				if (BLACS::indxg2p(k, System.cblock(), BLACS::grid_cols) == BLACS::mycol)
+				{
+					int l = BLACS::indxg2l(k, System.cblock(), BLACS::grid_cols);
+					System.local_matrix.col(l) = 2 * X.local_matrix.col(l).imag();
+				}
+			}
+			else // real eigenvalue
+			{
+				if (BLACS::indxg2p(k, System.cblock(), BLACS::grid_cols) == BLACS::mycol)
+				{
+					int l = BLACS::indxg2l(k, System.cblock(), BLACS::grid_cols);
+					System.local_matrix.col(l) = X.local_matrix.col(l).real();
+				}
+			}
+		}
+
+
+
+
 		BLACS::COMM_ACTIVE.Barrier();
 
-		ScaSolve<MatrixXcd> solver(X, rhsZ, peigen::pxgesv);
+		//ScaSolve<MatrixXcd> solver(X, rhsZ, peigen::EigenSVD);
+
+		ScaSolve<MatrixXd> solver(System, rhs, peigen::pxgesvx);
+		cout << "Residual from the system solve: " << solver.residual(System, rhs) << endl << flush;
+
+		// Reconstitute the solution to the original system
+		SharedMatrix<MatrixXcd> weights(solver.solution.rows(), solver.solution.cols(), solver.solution.rblock(), solver.solution.cblock());
+		for (int k = 0; k < lambdas.rows(); ++k)
+		{
+			// First item of a conjugate pair
+			if (lambdas(k, 0).imag() != 0)
+			{
+				if (BLACS::indxg2p(k, System.rblock(), BLACS::grid_rows) == BLACS::myrow)
+				{
+					if (BLACS::indxg2p(k + 1, System.rblock(), BLACS::grid_rows) == BLACS::myrow)
+					{
+						int l = BLACS::indxg2l(k, System.rblock(), BLACS::grid_rows);
+						weights.local_matrix(l, 0) = complex<double>(solver.solution.local_matrix(l, 0), solver.solution.local_matrix(l + 1, 0));
+						weights.local_matrix(l + 1, 0) = complex<double>(solver.solution.local_matrix(l, 0), -solver.solution.local_matrix(l + 1, 0));
+					}
+					else
+					{
+						int ownernext = BLACS::indxg2p(k + 1, System.rblock(), BLACS::grid_rows);
+						double im;
+						BLACS::COMM_ACTIVE.Recv(&im, 1, MPI::DOUBLE, ownernext, ownernext);
+
+						int l = BLACS::indxg2l(k, System.rblock(), BLACS::grid_rows);
+						weights.local_matrix(l, 0) = complex<double>(solver.solution.local_matrix(l, 0), im);
+					}
+				}
+				else
+				{
+					if (BLACS::indxg2p(k + 1, System.rblock(), BLACS::grid_rows) == BLACS::myrow)
+					{
+						int owner = BLACS::indxg2p(k + 1, System.rblock(), BLACS::grid_rows);
+						double re;
+						BLACS::COMM_ACTIVE.Recv(&re, 1, MPI::DOUBLE, owner, owner);
+
+						int l = BLACS::indxg2l(k + 1, System.rblock(), BLACS::grid_rows);
+						weights.local_matrix(l + 1, 0) = complex<double>(re, solver.solution.local_matrix(l + 1, 0));
+					}
+				}
+				++k;
+			}
+			else // real eigenvalue
+			{
+				if (BLACS::indxg2p(k, System.cblock(), BLACS::grid_cols) == BLACS::mycol)
+				{
+					int l = BLACS::indxg2l(k, System.rblock(), BLACS::grid_rows);
+					weights.local_matrix(l, 0) = complex<double>(solver.solution.local_matrix(l, 0), 0);
+				}
+			}
+		}
 
 		if (ROOT)
 		{
 			cout << "HERE COME the solution" << endl << flush;
 		}
-		cout << solver.solution;
+		cout << weights << endl;
 		
-		cout << "Residual from the system solve: " << solver.residual(X, rhsZ) << endl << flush;
+		
 
 		/////**************************************************************************************************/
 		/////*------------------------------      /DO A LINEAR SYSTEM SOLVE      -----------------------------*/
@@ -309,8 +398,16 @@ int main(int argc, char* argv[])
 
 		SharedMatrix<MatrixXcd> Modes = svd.matrixU.cast<std::complex<double> >() * X;
 
-		Modes.ColScale(solver.solution);
+		Modes.ColScale(weights);
 
+
+		SharedMatrix<MatrixXcd> Vandermonde = vander<MatrixXcd>(lambdas, Modes.cols(), Modes.rblock(), Modes.cblock());
+		//cout << Vandermonde << endl;
+
+		SharedMatrix<MatrixXcd> reconstruct = snaps.cast<complex<double>>().block(0,0, 4*Np, Nt-1);
+		reconstruct.pgemm(1., Modes, Vandermonde, -1.);
+		//cout << reconstruct << endl;
+		cout << "Residual from Modes: " << reconstruct.localBlock().cwiseAbs().maxCoeff() << endl;
 		
 		//cout << Modes;
 		prof.toc("LinearSolve");
