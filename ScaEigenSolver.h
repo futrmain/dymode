@@ -32,18 +32,17 @@ namespace peigen
 		MatrixType::RealScalar residual(SharedMatrix<MatrixType> original)
 		{
 			SharedMatrix<Matrix<complex<MatrixType::RealScalar>, Dynamic, Dynamic>> R(evectors);
-			
+
 			// Multiplication by diagonal elements
 			for (int j = 0; j < R.local_matrix.cols(); ++j)
 			{
 				const int g = BLACS::indxl2g(j, evectors.cblock(), BLACS::grid_cols, BLACS::mycol);
 				R.local_matrix.col(j).noalias() = R.local_matrix.col(j) * evalues(g);
 			}
-
 			R.pgemm(1., original.cast<complex<double>>(), evectors, -1.);
 
 			// Compute local highest residual
-			return R.local_matrix.cwiseAbs().maxCoeff();
+			return R.local_matrix.cols() > 0 ? R.local_matrix.cwiseAbs().maxCoeff() : -1;
 		}
 
 		MatrixType::RealScalar global_residual(SharedMatrix<MatrixType> original)

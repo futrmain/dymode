@@ -57,7 +57,7 @@ namespace peigen
 	ScaSVD<MatrixType>::ScaSVD(SharedMatrix<MatrixType> M, bool computeU, bool computeVt)
 	{
 		assert((M.rblock() == M.cblock()) && "SVD: 'M' must be distributed using a square block-cyclic distribution");
-		M.printDetails();
+		//M.printDetails();
 
 		// Note: MKL only computes the slim matrices or nothing, no full matrix
 		char getU, getVt;

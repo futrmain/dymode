@@ -98,6 +98,7 @@ namespace peigen
 
 		// FIXME this should account for transpose flags somehow
 		// Also loops here are ugly
+		// FIXME .block() does not work on empty matrices...
 		MatrixType localBlock()
 		{
 			int i_loc = 0;

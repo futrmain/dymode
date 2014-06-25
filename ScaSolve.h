@@ -52,16 +52,15 @@ namespace peigen
 		MatrixType::RealScalar residual(SharedMatrix<MatrixType> A, SharedMatrix<MatrixType> B)
 		{
 			SharedMatrix<MatrixType> R(B);
-
 			R.pgemm(1., A, solution, -1.);
-
+			
 			// Compute local highest residual
-			return R.localBlock().cwiseAbs().maxCoeff();
+			return R.local_matrix.cols() > 0 ? R.local_matrix.cwiseAbs().maxCoeff() : -1;
 		}
 
-		MatrixType::RealScalar global_residual(SharedMatrix<MatrixType> original)
+		MatrixType::RealScalar global_residual(SharedMatrix<MatrixType> original, SharedMatrix<MatrixType> rhs)
 		{
-			double r_loc = residual(original);
+			double r_loc = residual(original, rhs);
 			double r;
 
 			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
