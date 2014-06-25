@@ -260,7 +260,7 @@ int main(int argc, char* argv[])
 
 		
 
-		ScaEigenSolver<MatrixXd> eig(B, true, EigSchur);
+		ScaEigenSolver<MatrixXd> eig(B, true, EigSerial);
 
 		double r_eig = eig.global_residual(B);
 		if (ROOT)
@@ -329,52 +329,72 @@ int main(int argc, char* argv[])
 
 		ScaSolve<MatrixXd> solver(System, rhs, peigen::pxgesvx);
 		cout << "Residual from the system solve: " << solver.residual(System, rhs) << endl << flush;
+		BLACS::COMM_ACTIVE.Barrier();
+
+		//cout << BLACS::myrank << ", lambdas: " << lambdas << endl << flush;
+		//cout << BLACS::myrank << ", solution: " << solver.solution.local_matrix << endl << flush;
 
 		// Reconstitute the solution to the original system
 		SharedMatrix<MatrixXcd> weights(solver.solution.rows(), solver.solution.cols(), solver.solution.rblock(), solver.solution.cblock());
-		for (int k = 0; k < lambdas.rows(); ++k)
+		if (weights.local_matrix.cols() > 0)
 		{
-			// First item of a conjugate pair
-			if (lambdas(k, 0).imag() != 0)
+			for (int k = 0; k < lambdas.rows(); ++k)
 			{
-				if (BLACS::indxg2p(k, System.rblock(), BLACS::grid_rows) == BLACS::myrow)
+				// First item of a conjugate pair
+				if (lambdas(k, 0).imag() != 0)
 				{
-					if (BLACS::indxg2p(k + 1, System.rblock(), BLACS::grid_rows) == BLACS::myrow)
+					if (BLACS::indxg2p(k, weights.rblock(), BLACS::grid_rows) == BLACS::myrow)
 					{
-						int l = BLACS::indxg2l(k, System.rblock(), BLACS::grid_rows);
-						weights.local_matrix(l, 0) = complex<double>(solver.solution.local_matrix(l, 0), solver.solution.local_matrix(l + 1, 0));
-						weights.local_matrix(l + 1, 0) = complex<double>(solver.solution.local_matrix(l, 0), -solver.solution.local_matrix(l + 1, 0));
+						int l = BLACS::indxg2l(k, weights.rblock(), BLACS::grid_rows);
+						if (BLACS::indxg2p(k + 1, weights.rblock(), BLACS::grid_rows) == BLACS::myrow)
+						{
+							cout << BLACS::myrank << ", I have a pair " << k << endl << flush;
+							weights.local_matrix.row(l).real() = solver.solution.local_matrix.row(l);
+							weights.local_matrix.row(l).imag() = solver.solution.local_matrix.row(l + 1);
+							weights.local_matrix.row(l + 1) = weights.local_matrix.row(l).conjugate();
+						}
+						else // have the 1st one but not the 2nd one
+						{
+							int ownernext = BLACS::indxg2p(k + 1, weights.rblock(), BLACS::grid_rows);
+							ownernext = BLACS::Cblacs_pnum(BLACS::ctxt, ownernext, BLACS::mycol);
+							MatrixXd re = solver.solution.local_matrix.row(l);
+							MatrixXd im(1, solver.solution.local_matrix.cols());
+							cout << BLACS::myrank << ", sending " << k << " to " << ownernext << " with tag " << ownernext << endl << flush;
+							BLACS::COMM_ACTIVE.Send(re.data(), re.cols(), MPI::DOUBLE, ownernext, ownernext);
+							BLACS::COMM_ACTIVE.Recv(im.data(), im.cols(), MPI::DOUBLE, ownernext, ownernext);
+
+							weights.local_matrix.row(l).real() = solver.solution.local_matrix.row(l);
+							weights.local_matrix.row(l).imag() = im;
+						}
 					}
 					else
 					{
-						int ownernext = BLACS::indxg2p(k + 1, System.rblock(), BLACS::grid_rows);
-						double im;
-						BLACS::COMM_ACTIVE.Recv(&im, 1, MPI::DOUBLE, ownernext, ownernext);
+						if (BLACS::indxg2p(k + 1, weights.rblock(), BLACS::grid_rows) == BLACS::myrow)
+						{
+							int l = BLACS::indxg2l(k + 1, weights.rblock(), BLACS::grid_rows);
 
-						int l = BLACS::indxg2l(k, System.rblock(), BLACS::grid_rows);
-						weights.local_matrix(l, 0) = complex<double>(solver.solution.local_matrix(l, 0), im);
+							int ownerprev = BLACS::indxg2p(k, weights.rblock(), BLACS::grid_rows);
+							ownerprev = BLACS::Cblacs_pnum(BLACS::ctxt, ownerprev, BLACS::mycol);
+							MatrixXd re(1, solver.solution.local_matrix.cols());
+							MatrixXd im = solver.solution.local_matrix.row(l + 1);
+							cout << BLACS::myrank << ", receiving " << k << " from " << ownerprev << " with tag " << BLACS::myrank << endl << flush;
+							BLACS::COMM_ACTIVE.Recv(re.data(), re.cols(), MPI::DOUBLE, ownerprev, BLACS::myrank);
+							BLACS::COMM_ACTIVE.Send(im.data(), im.cols(), MPI::DOUBLE, ownerprev, BLACS::myrank);
+
+							weights.local_matrix.row(l + 1).real() = re;
+							weights.local_matrix.row(l + 1).imag() = solver.solution.local_matrix.row(l + 1);
+						}
 					}
+					++k;
 				}
-				else
+				else // real eigenvalue
 				{
-					if (BLACS::indxg2p(k + 1, System.rblock(), BLACS::grid_rows) == BLACS::myrow)
+					if (BLACS::indxg2p(k, weights.rblock(), BLACS::grid_rows) == BLACS::myrow)
 					{
-						int owner = BLACS::indxg2p(k + 1, System.rblock(), BLACS::grid_rows);
-						double re;
-						BLACS::COMM_ACTIVE.Recv(&re, 1, MPI::DOUBLE, owner, owner);
-
-						int l = BLACS::indxg2l(k + 1, System.rblock(), BLACS::grid_rows);
-						weights.local_matrix(l + 1, 0) = complex<double>(re, solver.solution.local_matrix(l + 1, 0));
+						cout << BLACS::myrank << ", I have a real one " << k << endl << flush;
+						int l = BLACS::indxg2l(k, weights.rblock(), BLACS::grid_rows);
+						weights.local_matrix.row(l) = solver.solution.local_matrix.row(l).cast<complex<double>>();
 					}
-				}
-				++k;
-			}
-			else // real eigenvalue
-			{
-				if (BLACS::indxg2p(k, System.cblock(), BLACS::grid_cols) == BLACS::mycol)
-				{
-					int l = BLACS::indxg2l(k, System.rblock(), BLACS::grid_rows);
-					weights.local_matrix(l, 0) = complex<double>(solver.solution.local_matrix(l, 0), 0);
 				}
 			}
 		}
@@ -476,7 +496,7 @@ int main(int argc, char* argv[])
 		prof.tic("DumpModes");
 		BLACS::COMM_ACTIVE.Barrier();
 		// Find which column of Modes has the most energy
-		int NMODES = 1; // Number of modes to print
+		int NMODES = 5; // Number of modes to print
 		MatrixXd::Index i_mode, x_mode;
 
 		stringstream variables;
@@ -525,7 +545,7 @@ int main(int argc, char* argv[])
 			variables << "scalar per element: Mode" << m << "abs " << filename.str() << endl;
 			//cout << " abs" << m;
 
-			/*stringstream filenameIM;
+			stringstream filenameIM;
 			filenameIM << "mode" << m << ".ang";
 			
 			pFile = fopen(filenameIM.str().c_str(), "wb");
@@ -545,7 +565,7 @@ int main(int argc, char* argv[])
 			fwrite(export.data(), 1, Modes.rows() * sizeof(float) / 4, pFile);
 
 			fclose(pFile);
-			variables << "scalar per element: Mode" << m << "ang " << filenameIM.str() << endl;*/
+			variables << "scalar per element: Mode" << m << "ang " << filenameIM.str() << endl;
 
 			cout << "\tDONE" << endl;
 		}
