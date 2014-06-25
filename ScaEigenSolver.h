@@ -14,7 +14,7 @@ namespace peigen
 	private:
 		SharedMatrix<MatrixType> S;
 		SharedMatrix<Matrix<complex<MatrixType::RealScalar>, Dynamic, Dynamic>> evectors;		
-		Matrix<complex<MatrixType::RealScalar>, Dynamic, Dynamic> evalues;
+		Matrix<complex<MatrixType::RealScalar>, Dynamic, 1> evalues;
 		EigenMethod method_;
 
 	public:
@@ -58,7 +58,7 @@ namespace peigen
 	};
 
 	template <typename MatrixType>
-	ScaEigenSolver<MatrixType>::ScaEigenSolver(const SharedMatrix<MatrixType>& A, const bool computeEigenVectors = true, const EigenMethod method = EigSchur) : S(A), method_(method)
+	ScaEigenSolver<MatrixType>::ScaEigenSolver(const SharedMatrix<MatrixType>& A, const bool computeEigenVectors = true, const EigenMethod method = EigSchur) : S(A), method_(method), evalues(Matrix<complex<MatrixType::RealScalar>, Dynamic, Dynamic>(min(A.rows(), A.cols()), 1))
 	{
 		assert(A.rows() == A.cols() && "CALLING EIGEN SOLVER ON NON SQUARE MATRIX");
 
@@ -116,9 +116,17 @@ namespace peigen
 		evectors.dispatch(0, A.rblock(), A.cblock());
 		BLACS::COMM_ACTIVE.Bcast(evalues.data(), evalues.rows(), MPIType(), 0);
 
-
-		std::cout << "Eigen values from Eigen" << endl << evalues << endl << endl;
-		std::cout << "Eigen vectors from Eigen" << endl << evectors << endl << endl;
+		/*if (BLACS::myrank == 0)
+		{
+			std::cout << BLACS::myrank << ", Eigen values from Eigen" << endl << evalues << endl << endl;
+			std::cout << BLACS::myrank << ", Eigen vectors from Eigen" << endl << evectors.local_matrix << endl << endl;
+		}
+		BLACS::COMM_ACTIVE.Barrier();
+		if (BLACS::myrank != 0)
+		{
+			std::cout << BLACS::myrank << ", Eigen values from Eigen" << endl << evalues << endl << endl;
+			std::cout << BLACS::myrank << ", Eigen vectors from Eigen" << endl << evectors.local_matrix << endl << endl;
+		}*/
 		
 	}
 
