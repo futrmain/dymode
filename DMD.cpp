@@ -67,8 +67,8 @@ int main(int argc, char* argv[])
 
 
 	// Input arguments
-	const int nfiles = 7;// boost::lexical_cast<int>(argv[1]);
-	const int nskip_step = 3;// boost::lexical_cast<int>(argv[2]);
+	const int nfiles = 1;// boost::lexical_cast<int>(argv[1]);
+	const int nskip_step = 5;// boost::lexical_cast<int>(argv[2]);
 
 	if (BLACS::ROOT)
 	{
@@ -82,19 +82,19 @@ int main(int argc, char* argv[])
 	if (BLACS::ROOT)
 		std::cout << "Creating Reader" << endl << flush;
 
-	datasetreader dreader(nfiles, "D:/DMD/testmat");
+	datasetreader dreader(nfiles, "D:/DMD/DMD/x64/NNDEB/Re350_oscillating");
 	if (BLACS::ROOT)
 		std::cout << "Datareader created." << endl << flush;
 
 	MPI::COMM_WORLD.Barrier(); // For printing purposes
 
-	dreader.read("testgroup_T");
+	dreader.read("snapshots_T");
 
 	MPI::COMM_WORLD.Barrier(); // For printing purposes
 
 	SharedMatrix<MatrixXd> snaps(dreader.createShared(6, 6, nskip_step));
 
-	cout << snaps << endl;
+	//cout << snaps << endl;
 
 	//std::cout << "From the return value: " << prof.toc("Read") << endl << flush;
 	prof.toc("Read", "The time Reading took is: ");
@@ -122,7 +122,7 @@ int main(int argc, char* argv[])
 		//SharedMatrix<MatrixXd> snaps = dreader.datamat;
 		//prof.toc("Read");
 
-		cout << snaps;
+		//cout << snaps;
 
 		///**************************************************************************************************/
 		///*-------------------------------------     START OF DMD     -------------------------------------*/
@@ -149,14 +149,14 @@ int main(int argc, char* argv[])
 			cout << "singular values on process  " << rank << " are " << svd.singularValues.transpose() << endl << flush;
 
 
-		if (ROOT)
+		/*if (ROOT)
 			cout << "HERE COMES U" << endl << flush;
-		cout << svd.matrixU;
+		cout << svd.matrixU;*/
 		
 
-		if (ROOT)
+		/*if (ROOT)
 			cout << "HERE COMES Vt" << endl << flush;
-		cout << svd.matrixVt;
+		cout << svd.matrixVt;*/
 
 
 		double r_svd = svd.residual(snaps.block(0, 0, 4 * Np, Nt - 1));
@@ -166,8 +166,7 @@ int main(int argc, char* argv[])
 		cout << "Residual GLOBAL from SVD: " << svd.global_residual(snaps.block(0, 0, 4 * Np, Nt - 1)) << endl << flush;
 
 		
-
-		prof.toc("SVD");
+		prof.toc("SVD", "SVD done in: ");
 		/////**************************************************************************************************/
 		/////*-------------------------------------      /DO AN SVD      -------------------------------------*/
 		/////**************************************************************************************************/
@@ -197,8 +196,8 @@ int main(int argc, char* argv[])
 		//cout << svd.matrixU << endl << endl;
 		SharedMatrix<MatrixXd> tmpMat = svd.matrixU.transpose() * snaps.block(0, 1, 4 * Np, Nt - 1);
 		
-		cout << "HERE COMES tmpMat" << endl << flush;
-		cout << tmpMat << endl << endl;
+		/*cout << "HERE COMES tmpMat" << endl << flush;
+		cout << tmpMat << endl << endl;*/
 		
 		
 		snaps.clear();
@@ -208,9 +207,9 @@ int main(int argc, char* argv[])
 
 		svd.matrixU.clear();
 
-		if (ROOT)
+		/*if (ROOT)
 			cout << "HERE COMES Partial B " << endl << flush;
-		cout << B;
+		cout << B;*/
 
 
 		//// Now only a right-multiply by SIG+ is left to do
@@ -231,21 +230,21 @@ int main(int argc, char* argv[])
 				SIGplus(i, i) = 1 / svd.singularValues(index);
 		}
 
-		if (ROOT)
+		/*if (ROOT)
 		{
 			cout << "HERE COMES SIG+" << endl << flush;
 			cout << SIGplus.diagonal().transpose() << endl;
-		}
+		}*/
 
 
 		B.local_matrix = B.local_matrix * SIGplus;
 		if (ROOT)
 			cout << "B is computed " << endl;
-		if (ROOT)
+		/*if (ROOT)
 			cout << "HERE COMES Ut M V SIG+" << endl << flush;
-		cout << B;
+		cout << B;*/
 
-		prof.toc("MultiplyB");
+		prof.toc("MultiplyB", "B created in: ");
 		/////**************************************************************************************************/
 		/////*------------------------------     /DO B := Ut * M * V * SIG+     ------------------------------*/
 		/////**************************************************************************************************/
@@ -271,7 +270,7 @@ int main(int argc, char* argv[])
 		SharedMatrix<MatrixXcd> X = eig.eigenVectors();
 		MatrixXcd lambdas = eig.eigenValues(); 
 
-		prof.toc("EigenProblem");
+		prof.toc("EigenProblem", "Eigen problem solved in: ");
 		/////**************************************************************************************************/
 		/////*------------------------------    /DO AN EIGENVECTOR SOLUTION     ------------------------------*/
 		/////**************************************************************************************************/
@@ -411,7 +410,7 @@ int main(int argc, char* argv[])
 		cout << "Residual from Modes: " << reconstruct.localBlock().cwiseAbs().maxCoeff() << endl;
 		
 		//cout << Modes;
-		prof.toc("LinearSolve");
+		prof.toc("LinearSolve", "Eigen problem solved in: ");
 		/////**************************************************************************************************/
 		/////*-----------------------------      /APPLY WEIGHT TO THE MODES      -----------------------------*/
 		/////**************************************************************************************************/
@@ -474,186 +473,98 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 		/////*------------------------------       PRINT SOME MODES TO HDF5      -----------------------------*/
 		/////**************************************************************************************************/
-		//prof.tic("DumpH5");
-		//string out_file = "DMDosc.h5";
-		//BLACS::COMM_ACTIVE.Barrier();
-		//// Find which column of Modes has the most energy
-		//int NMODES = 3;
-		//MatrixXd::Index i_mode;
+		prof.tic("DumpModes");
+		BLACS::COMM_ACTIVE.Barrier();
+		// Find which column of Modes has the most energy
+		int NMODES = 1; // Number of modes to print
+		MatrixXd::Index i_mode, x_mode;
 
-		//if (ROOT)
-		//{
-		//	cout << "(" << BLACS::myrank << ")" << endl;
-		//	Matrix<double, Dynamic, 2, RowMajor> spectrum(Nt - 1, 2);
-		//	spectrum.col(0) = lambdas.real().cwiseQuotient(lambdas.cwiseAbs()).array().acos().matrix();
-		//	spectrum.col(1) = amplitudes.global_matrix.row(0);
+		stringstream variables;
 
-		//	std::ofstream s("spectrum.txt");
-		//	if (s.is_open())
-		//	{
-		//		s << spectrum << '\n';
-		//		s.close();
-		//	}
+		for (int m = 0; m < NMODES; ++m)
+		{
+			cout << "writing mode " << m << "...";
+			//Find mode with highest amplitude
+			amplitudes.maxCoeff(&x_mode, &i_mode); //x_mode is always 0 since amplitudes is a 1xN matrix
+			
+			// Only print 1 mode out of a possible conjugate pair
+			while (lambdas(i_mode, 0).imag() < 0)
+			{
+				amplitudes(0, i_mode) = -1;	// Get the bottom part of the spectrum out of the game
+				amplitudes.maxCoeff(&x_mode, &i_mode);
+			}
+			amplitudes(0, i_mode) = -1;
 
-		//	std::ofstream l("lambdas.txt");
-		//	if (l.is_open())
-		//	{
-		//		l << lambdas << '\n';
-		//		l.close();
-		//	}
+			stringstream filename;
+			filename << "mode" << m << ".abs";
+			FILE *pFile;
+			pFile = fopen(filename.str().c_str(), "wb");
+			
 
-		//	hyperslab2D sel;
-		//	sel.count[0] = spectrum.rows();
-		//	sel.count[1] = spectrum.cols();
-		//	//hid_t filespace = H5Screate_simple(2, sel.count, NULL); 
-		//	//hid_t memspace = H5Screate_simple(/*rank*/ 2, sel.count, NULL);
+			char text[81];
+			sprintf(text, "Module of Mode %06i%-58s\n", m, "");
+			fwrite(text, 1, 80*sizeof(char), pFile);
 
-		//	hid_t file = H5Fcreate(out_file.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-		//	//	hid_t dataset = H5Dcreate(file, "/spectrum", H5T_NATIVE_DOUBLE, filespace,
-		//	//				H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+			sprintf(text, "%-79s\n", "part");
+			fwrite(text, 1, 80 * sizeof(char), pFile);
 
-		//	//	herr_t status = H5Dwrite(dataset, H5T_NATIVE_DOUBLE, memspace, filespace,
-		//	//				H5P_DEFAULT, spectrum.data());
+			const int part_number = 1;
+			fwrite(&part_number, 1, 1 * sizeof(int), pFile);
 
-		//	//	H5Dclose(dataset);
-		//	H5Fclose(file);/*
-		//				   H5Sclose(memspace);
-		//				   H5Sclose(filespace);*/
-		//}
+			sprintf(text, "%-79s\n", "hexa8");
+			fwrite(text, 1, 80 * sizeof(char), pFile);
 
-		//for (int mode = 0; mode < NMODES; mode++)
-		//{
-		//	amplitudes.global_matrix.row(0).maxCoeff(&i_mode);
+			//cout << "test 1" << endl;
 
-		//	while (lambdas(i_mode).imag() < 0)
-		//	{
-		//		amplitudes.global_matrix(i_mode) = -1;
-		//		amplitudes.global_matrix.row(0).maxCoeff(&i_mode);
-		//	}
-		//	amplitudes.global_matrix(i_mode) = -1;
+			MatrixXf export = Modes.local_matrix.col(i_mode).cwiseAbs().cast<float>();
+			fwrite(export.data(), 1, Modes.rows() * sizeof(float) / 4 , pFile);
 
-		//	if (lambdas(i_mode).imag() >= 0)
-		//	{
-		//		//cout << rank<< " i_mode " << i_mode << endl <<flush;
+			//cout << "test 2" << endl;
 
-		//		MPI::Intracomm ColComm = BLACS::COMM_ACTIVE.Split(BLACS::mycol, BLACS::myrow);
-		//		int icol = (i_mode / Modes.cblock()) % BLACS::grid_cols;
-		//		int i_loc = (i_mode / (Modes.cblock() * BLACS::grid_cols)) + (i_mode % Modes.cblock());
-		//		//cout << rank<< " icol " << icol << endl <<flush;
-		//		//cout << rank<< " i_loc " << i_loc << endl <<flush;
+			fclose(pFile);
+			variables << "scalar per element: Mode" << m << "abs " << filename.str() << endl;
+			//cout << " abs" << m;
 
-		//		if (BLACS::mycol == icol)
-		//		{
-		//			hyperslab2D sel;
-		//			//cout << rank << " in "  << endl <<flush;
-		//			/*
-		//			* Set up file access property list with parallel I/O access
-		//			*/
-		//			hid_t plist_fa = H5Pcreate(H5P_FILE_ACCESS);
-		//			H5Pset_fapl_mpio(plist_fa, ColComm, MPI::INFO_NULL);
-		//			//cout << rank<< " before create "  << endl <<flush;
-		//			/*
-		//			* Create a new file collectively and release property list identifier.
-		//			*/
-		//			hid_t file = H5Fopen(out_file.c_str(), H5F_ACC_RDWR, plist_fa);
-		//			H5Pclose(plist_fa);
-		//			//cout << rank<< " after create "  << endl <<flush;
-		//			/*
-		//			* Create the dataspace for the dataset.
-		//			*/
-		//			sel.count[0] = 4 * Np;
-		//			sel.count[1] = 2;
-		//			hid_t filespace = H5Screate_simple(2, sel.count, NULL);
+			/*stringstream filenameIM;
+			filenameIM << "mode" << m << ".ang";
+			
+			pFile = fopen(filenameIM.str().c_str(), "wb");
 
-		//			/*
-		//			* Create the dataset with default properties and close filespace.
-		//			*/
-		//			ostringstream  datasetname;
-		//			datasetname << "/mode" << mode;
+			sprintf(text, "Angle of Mode %06i %-58s\n", m, "");
+			fwrite(text, 1, 80 * sizeof(char), pFile);
 
-		//			hid_t dataset = H5Dcreate(file, datasetname.str().c_str(), H5T_NATIVE_DOUBLE, filespace,
-		//				H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-		//			//H5Sclose(filespace);
-		//			//cout << rank<< " dataset created "  << endl <<flush;
-		//			/*
-		//			* Each process defines dataset in memory and writes it to the hyperslab
-		//			* in the file.
-		//			*/
-		//			sel.count[0] = Modes.local_matrix.rows();
-		//			sel.count[1] = 2;
-		//			sel.offset[0] = 0;
-		//			sel.offset[1] = 0;
-		//			hid_t memspace = H5Screate_simple(/*rank*/ 2, sel.count, NULL);
-		//			H5Sselect_hyperslab(memspace, H5S_SELECT_SET, sel.offset, NULL, sel.count, NULL);
-		//			ColComm.Barrier();
-		//			/*H5Sget_select_bounds(memspace, start, end );
-		//			cout << "loop " << MPI::COMM_WORLD.Get_rank() << ": start is " << start[0] << "x" << start[1] << ", end is " << end[0] << "x" << end[1] <<endl;
-		//			ColComm.Barrier();*/
+			sprintf(text, "%-79s\n", "part");
+			fwrite(text, 1, 80 * sizeof(char), pFile);
 
-		//			/*
-		//			* Select hyperslab in the file.
-		//			*/
+			fwrite(&part_number, 1, 1 * sizeof(int), pFile);
 
-		//			sel.count[0] = 1;
-		//			sel.count[1] = 2;
-		//			sel.offset[0] = Modes.rblock() * (BLACS::myrow);
-		//			sel.offset[1] = 0;
-		//			H5Sselect_hyperslab(filespace, H5S_SELECT_SET, sel.offset, NULL, sel.count, NULL);
+			sprintf(text, "%-79s\n", "hexa8");
+			fwrite(text, 1, 80 * sizeof(char), pFile);
+
+			export = Modes.local_matrix.col(i_mode).imag().binaryExpr(Modes.local_matrix.col(i_mode).real(), std::ptr_fun(atan2<double, double>)).cast<float>();
+			fwrite(export.data(), 1, Modes.rows() * sizeof(float) / 4, pFile);
+
+			fclose(pFile);
+			variables << "scalar per element: Mode" << m << "ang " << filenameIM.str() << endl;*/
+
+			cout << "\tDONE" << endl;
+		}
+
+		std::ofstream ofs("dmd.case", std::ofstream::out);
+
+		ofs << "FORMAT" << endl
+			<< "type: ensight gold" << endl
+			<< "GEOMETRY" << endl
+			<< "model: dmd.geo" << endl
+			<< "VARIABLE" << endl
+			<< variables.str()
+			<< "TIME" << endl
+			<< "time set: 1 \nnumber of steps: 1 \nfilename start number: 0 \nfilename increment: 1 \ntime values: \n0" << endl;
 
 
-		//			for (int r = 0; r < min(Modes.rblock(), (int)Modes.local_matrix.rows()); r++)
-		//			{
-		//				sel.stride[0] = Modes.rblock() * BLACS::grid_rows;
-		//				sel.stride[1] = 1;
-		//				sel.count[0] = ceil((double)(Modes.local_matrix.rows() - r) / Modes.rblock());
-		//				sel.count[1] = 2;
-		//				sel.offset[0] = r + Modes.rblock() * BLACS::myrow;
-		//				sel.offset[1] = 0;
-		//				sel.block[0] = 1;
-		//				sel.block[1] = 1;
-		//				H5Sselect_hyperslab(filespace, H5S_SELECT_OR, sel.offset, sel.stride, sel.count, sel.block);
-		//			}
-		//			ColComm.Barrier();
-		//			/*H5Sget_select_bounds(filespace, start, end );
-		//			cout << "filespace " << MPI::COMM_WORLD.Get_rank() << ": start is " << start[0] << "x" << start[1] << ", end is " << end[0] << "x" << end[1] <<endl;
-		//			ColComm.Barrier();*/
+		ofs.close();
 
-		//			/*
-		//			* Create property list for collective dataset write.
-		//			*/
-		//			MatrixXd CurrentMode(Modes.local_matrix.rows(), 2);
-		//			CurrentMode.col(0) = Modes.local_matrix.col(i_loc).cwiseAbs();
-		//			CurrentMode.col(1) = Modes.local_matrix.col(i_loc).imag().binaryExpr(Modes.local_matrix.col(i_loc).real(), std::ptr_fun(atan2<double, double>));
-
-		//			/*if (ROOT)
-		//			cout << CurrentMode.block(0,0, 40, 2);*/
-		//			if (ROOT)
-		//				cout << "Writing mode " << mode << "..." << endl;
-
-		//			CurrentMode.transposeInPlace();
-
-
-
-		//			hid_t plist_id = H5Pcreate(H5P_DATASET_XFER);
-		//			H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
-		//			//cout << "Just before write " <<endl << flush;
-		//			herr_t status = H5Dwrite(dataset, H5T_NATIVE_DOUBLE, memspace, filespace,
-		//				plist_id, CurrentMode.data());
-		//			//cout << "Just after write " <<endl << flush;
-		//			/*
-		//			* Close/release resources.
-		//			*/
-		//			H5Pclose(plist_id);
-		//			H5Sclose(memspace);
-		//			H5Dclose(dataset);
-		//			H5Sclose(filespace);
-
-		//			//H5Pclose(plist_id);
-		//			H5Fclose(file);
-		//		}
-		//	}
-		//}
-		//prof.toc("DumpH5");
+		prof.toc("DumpModes");
 		/////**************************************************************************************************/
 		/////*------------------------------      /PRINT SOME MODES TO HDF5      -----------------------------*/
 		/////**************************************************************************************************/
@@ -672,7 +583,7 @@ int main(int argc, char* argv[])
 	}
 
 	if (ROOT)	// not having if(root) prevents segfault at the begining of the program (!?!)
-		cout << "DONE" << endl;
+		cout << "PROGRAM FINISHED" << endl;
 
 	BLACS::finalize();
 	MPI::Finalize();
