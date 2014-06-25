@@ -68,7 +68,7 @@ namespace peigen
 		//std::cout << "0" << endl;
 
 		EigenSolver<MatrixType> eig;
-		if (method_ == Eigen)
+		if (method_ == EigSerial)
 		{
 			S.gather(0);
 
