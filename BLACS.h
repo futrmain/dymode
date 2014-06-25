@@ -25,7 +25,7 @@ namespace peigen
 			void Cblacs_barrier(int, const char*);
 			void Cdgerv2d(int, int, int, double*, int, int, int);
 			void Cdgesd2d(int, int, int, double*, int, int, int);
-			int Cblacs_pnum(int , int , int);
+			int Cblacs_pnum(int ctxt, int prow, int pcol);
 
 			int numroc_(int*, int*, int*, int*, int*);
 			void chk1mat_(const int*, const int*, const int*, const int*, const int*, const int*, int*, const int*, int*);
