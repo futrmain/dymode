@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
 
 	DoProfiler prof;
 
-	cout.precision(2*std::numeric_limits< double >::digits10);
+	cout.precision(2 * std::numeric_limits< double >::digits10);
 
 	// Create the BLACS grid
 	BLACS::init(numtasks);
@@ -151,12 +151,12 @@ int main(int argc, char* argv[])
 
 		/*if (ROOT)
 			cout << "HERE COMES U" << endl << flush;
-		cout << svd.matrixU;*/
-		
+			cout << svd.matrixU;*/
+
 
 		/*if (ROOT)
 			cout << "HERE COMES Vt" << endl << flush;
-		cout << svd.matrixVt;*/
+			cout << svd.matrixVt;*/
 
 
 		double r_svd = svd.residual(snaps.block(0, 0, 4 * Np, Nt - 1));
@@ -165,7 +165,7 @@ int main(int argc, char* argv[])
 
 		cout << "Residual GLOBAL from SVD: " << svd.global_residual(snaps.block(0, 0, 4 * Np, Nt - 1)) << endl << flush;
 
-		
+
 		prof.toc("SVD", "SVD done in: ");
 		/////**************************************************************************************************/
 		/////*-------------------------------------      /DO AN SVD      -------------------------------------*/
@@ -195,11 +195,11 @@ int main(int argc, char* argv[])
 		//cout << "HERE COMES U BEFORE" << endl << flush;
 		//cout << svd.matrixU << endl << endl;
 		SharedMatrix<MatrixXd> tmpMat = svd.matrixU.transpose() * snaps.block(0, 1, 4 * Np, Nt - 1);
-		
+
 		/*cout << "HERE COMES tmpMat" << endl << flush;
 		cout << tmpMat << endl << endl;*/
-		
-		
+
+
 		snaps.clear();
 		SharedMatrix<MatrixXd> B = tmpMat * svd.matrixVt.transpose();
 
@@ -209,7 +209,7 @@ int main(int argc, char* argv[])
 
 		/*if (ROOT)
 			cout << "HERE COMES Partial B " << endl << flush;
-		cout << B;*/
+			cout << B;*/
 
 
 		//// Now only a right-multiply by SIG+ is left to do
@@ -232,8 +232,8 @@ int main(int argc, char* argv[])
 
 		/*if (ROOT)
 		{
-			cout << "HERE COMES SIG+" << endl << flush;
-			cout << SIGplus.diagonal().transpose() << endl;
+		cout << "HERE COMES SIG+" << endl << flush;
+		cout << SIGplus.diagonal().transpose() << endl;
 		}*/
 
 
@@ -242,7 +242,7 @@ int main(int argc, char* argv[])
 			cout << "B is computed " << endl;
 		/*if (ROOT)
 			cout << "HERE COMES Ut M V SIG+" << endl << flush;
-		cout << B;*/
+			cout << B;*/
 
 		prof.toc("MultiplyB", "B created in: ");
 		/////**************************************************************************************************/
@@ -258,7 +258,7 @@ int main(int argc, char* argv[])
 		prof.tic("EigenProblem");
 		//ScaEigenSolve<MatrixXd> pes(B);
 
-		
+
 
 		ScaEigenSolver<MatrixXd> eig(B, true, EigSerial);
 
@@ -268,7 +268,7 @@ int main(int argc, char* argv[])
 
 		// Matrix of eigen vectors
 		SharedMatrix<MatrixXcd> X = eig.eigenVectors();
-		MatrixXcd lambdas = eig.eigenValues(); 
+		MatrixXcd lambdas = eig.eigenValues();
 
 		prof.toc("EigenProblem", "Eigen problem solved in: ");
 		/////**************************************************************************************************/
@@ -288,8 +288,8 @@ int main(int argc, char* argv[])
 		snaps.clear();
 		SharedMatrix<MatrixXcd> rhsZ = rhs.cast<std::complex<double> >();
 
-		
-		
+
+
 		// Construct a system so that the weights will have to be in complex conjugate pairs
 		SharedMatrix<MatrixXd> System(X.rows(), X.cols(), X.rblock(), X.cblock());
 		for (int k = 0; k < lambdas.rows(); ++k)
@@ -404,8 +404,8 @@ int main(int argc, char* argv[])
 			cout << "HERE COME the solution" << endl << flush;
 		}
 		cout << weights << endl;
-		
-		
+
+
 
 		/////**************************************************************************************************/
 		/////*------------------------------      /DO A LINEAR SYSTEM SOLVE      -----------------------------*/
@@ -424,11 +424,11 @@ int main(int argc, char* argv[])
 		SharedMatrix<MatrixXcd> Vandermonde = vander<MatrixXcd>(lambdas, Modes.cols(), Modes.rblock(), Modes.cblock());
 		//cout << Vandermonde << endl;
 
-		SharedMatrix<MatrixXcd> reconstruct = snaps.cast<complex<double>>().block(0,0, 4*Np, Nt-1);
+		SharedMatrix<MatrixXcd> reconstruct = snaps.cast<complex<double>>().block(0, 0, 4 * Np, Nt - 1);
 		reconstruct.pgemm(1., Modes, Vandermonde, -1.);
 		//cout << reconstruct << endl;
 		cout << "Residual from Modes: " << reconstruct.localBlock().cwiseAbs().maxCoeff() << endl;
-		
+
 		//cout << Modes;
 		prof.toc("LinearSolve", "Eigen problem solved in: ");
 		/////**************************************************************************************************/
@@ -447,7 +447,7 @@ int main(int argc, char* argv[])
 
 		if (BLACS::myrank == 0)
 			cout << amplitudes << endl << flush;
-		
+
 		/////**************************************************************************************************/
 		/////*-----------------------------      /Compute the mode's energy      -----------------------------*/
 		/////**************************************************************************************************/
@@ -456,7 +456,7 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 		/////*----------------------------------      Print light data      ----------------------------------*/
 		/////**************************************************************************************************/
-		
+
 		if (ROOT)
 		{
 			cout << "Printing spectrum...\t";
@@ -485,7 +485,7 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 		/////*----------------------------------      /Print light data      ---------------------------------*/
 		/////**************************************************************************************************/
-		
+
 		//BLACS::COMM_ACTIVE.Barrier();
 
 
@@ -526,9 +526,9 @@ int main(int argc, char* argv[])
 			if (BLACS::mycol == BLACS::indxg2p(i_mode, Modes.cblock(), BLACS::grid_cols))
 			{
 				int i_loc = BLACS::indxg2l(i_mode, Modes.cblock(), BLACS::grid_cols);
-				MatrixXf export; 
+				MatrixXf export;
 
-				
+
 				// Gather the global column on row 0
 				Matrix<MPI::Request, Dynamic, Dynamic> Irecv_requests;
 				Matrix<Matrix<float, Dynamic, Dynamic>, Dynamic, 1> RecvBuffer;
@@ -537,7 +537,7 @@ int main(int argc, char* argv[])
 					export.resize(Modes.rows(), 2);
 					Irecv_requests.resize(BLACS::grid_rows, 1);
 					RecvBuffer.resize(BLACS::grid_rows, 1);
-					
+
 					for (int r = 0; r < BLACS::grid_rows; ++r)
 					{
 						int size = BLACS::peigen_numroc(Modes.rows(), Modes.rblock(), r, 0, BLACS::grid_rows);
@@ -546,7 +546,7 @@ int main(int argc, char* argv[])
 						Irecv_requests(r, 0) = BLACS::COMM_ACTIVE.Irecv(RecvBuffer(r, 0).data(), size * 2, MPI::FLOAT, powner, 1/*tag*/);
 					}
 				}
-				
+
 				Matrix<float, Dynamic, 2> SendBuffer(Modes.local_matrix.rows(), 2);
 				SendBuffer.col(0) = Modes.local_matrix.col(i_loc).cwiseAbs().cast<float>();
 				SendBuffer.col(1) = Modes.local_matrix.col(i_loc).imag().binaryExpr(Modes.local_matrix.col(i_loc).real(), std::ptr_fun(atan2<double, double>)).cast<float>();
@@ -560,14 +560,14 @@ int main(int argc, char* argv[])
 					// Combine the buffers
 					for (int rb = 0; rb < ceil((double)export.rows() / Modes.rblock()); rb++)
 					{
-							int roffset = Modes.rblock() * floor(rb / BLACS::grid_rows);
-							int _nrows = min(Modes.rblock(), export.rows() - rb*Modes.rblock());
-							int pr_owner = rb % BLACS::grid_rows;
-							export.block(rb*Modes.rblock(), 0, _nrows, 1) = RecvBuffer(pr_owner, 0).block(roffset, 0, _nrows, 1);
-							export.block(rb*Modes.rblock(), 1, _nrows, 1) = RecvBuffer(pr_owner, 0).block(roffset, 1, _nrows, 1);
+						int roffset = Modes.rblock() * floor(rb / BLACS::grid_rows);
+						int _nrows = min(Modes.rblock(), export.rows() - rb*Modes.rblock());
+						int pr_owner = rb % BLACS::grid_rows;
+						export.block(rb*Modes.rblock(), 0, _nrows, 1) = RecvBuffer(pr_owner, 0).block(roffset, 0, _nrows, 1);
+						export.block(rb*Modes.rblock(), 1, _nrows, 1) = RecvBuffer(pr_owner, 0).block(roffset, 1, _nrows, 1);
 					}
 				}
-				
+
 				// Print to disk from row 0
 				if (BLACS::myrow == 0)
 				{
@@ -593,7 +593,7 @@ int main(int argc, char* argv[])
 					fwrite(text, 1, 80 * sizeof(char), pFile);
 
 
-					
+
 					fwrite(export.data(), 1, Modes.rows() * sizeof(float) / 4, pFile);
 
 					fclose(pFile);
