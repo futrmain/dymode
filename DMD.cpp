@@ -53,6 +53,7 @@ int main(int argc, char* argv[])
 	// Deal with input parameters
 	int nfiles;
 	int nskip_step;
+	string dataset;
 	try 
 	{
 		TCLAP::CmdLine inp("Dymode, copyrighted for money", ' ', "0.1a");
@@ -71,6 +72,7 @@ int main(int argc, char* argv[])
 		// Input arguments
 		nfiles = nfilesArg.getValue();
 		nskip_step = nskipstepArg.getValue();
+		dataset = datasetnameArg.getValue();
 	}
 	catch (TCLAP::ArgException &e)  // catch any exceptions
 	{
@@ -117,7 +119,7 @@ int main(int argc, char* argv[])
 
 	MPI::COMM_WORLD.Barrier(); // For printing purposes
 
-	dreader.read("snapshots_T");
+	dreader.read(dataset);
 
 	MPI::COMM_WORLD.Barrier(); // For printing purposes
 
