@@ -498,91 +498,156 @@ int main(int argc, char* argv[])
 		// Find which column of Modes has the most energy
 		int NMODES = 5; // Number of modes to print
 		MatrixXd::Index i_mode, x_mode;
-
 		stringstream variables;
+
+		//cout << BLACS::myrank << " amplitudes " << amplitudes << endl << endl;
 
 		for (int m = 0; m < NMODES; ++m)
 		{
-			cout << "writing mode " << m << "...";
 			//Find mode with highest amplitude
 			amplitudes.maxCoeff(&x_mode, &i_mode); //x_mode is always 0 since amplitudes is a 1xN matrix
-			
+			BLACS::COMM_ACTIVE.Barrier();
+			//cout << BLACS::myrank << " i_mode initial " << i_mode << endl << endl;
+			BLACS::COMM_ACTIVE.Barrier();
 			// Only print 1 mode out of a possible conjugate pair
 			while (lambdas(i_mode, 0).imag() < 0)
 			{
+				BLACS::COMM_ACTIVE.Barrier();
 				amplitudes(0, i_mode) = -1;	// Get the bottom part of the spectrum out of the game
 				amplitudes.maxCoeff(&x_mode, &i_mode);
+				//cout << BLACS::myrank << " i_mode in loop " << i_mode << endl << endl;
 			}
+			BLACS::COMM_ACTIVE.Barrier();
+			//cout << BLACS::myrank << " i_mode final " << i_mode << endl << endl;
 			amplitudes(0, i_mode) = -1;
+			BLACS::COMM_ACTIVE.Barrier();
+			//cout << BLACS::myrank << " test " << i_mode << endl << endl;
 
-			stringstream filename;
-			filename << "mode" << m << ".abs";
-			FILE *pFile;
-			pFile = fopen(filename.str().c_str(), "wb");
-			
+			if (BLACS::mycol == BLACS::indxg2p(i_mode, Modes.cblock(), BLACS::grid_cols))
+			{
+				int i_loc = BLACS::indxg2l(i_mode, Modes.cblock(), BLACS::grid_cols);
+				MatrixXf export; 
 
-			char text[81];
-			sprintf(text, "Module of Mode %06i%-58s\n", m, "");
-			fwrite(text, 1, 80*sizeof(char), pFile);
+				
+				// Gather the global column on row 0
+				Matrix<MPI::Request, Dynamic, Dynamic> Irecv_requests;
+				Matrix<Matrix<float, Dynamic, Dynamic>, Dynamic, 1> RecvBuffer;
+				if (BLACS::myrow == 0)
+				{
+					export.resize(Modes.rows(), 2);
+					Irecv_requests.resize(BLACS::grid_rows, 1);
+					RecvBuffer.resize(BLACS::grid_rows, 1);
+					
+					for (int r = 0; r < BLACS::grid_rows; ++r)
+					{
+						int size = BLACS::peigen_numroc(Modes.rows(), Modes.rblock(), r, 0, BLACS::grid_rows);
+						RecvBuffer(r, 0).resize(size, 2);
+						int powner = BLACS::Cblacs_pnum(BLACS::ctxt, r, BLACS::mycol);
+						Irecv_requests(r, 0) = BLACS::COMM_ACTIVE.Irecv(RecvBuffer(r, 0).data(), size * 2, MPI::FLOAT, powner, 1/*tag*/);
+					}
+				}
+				
+				Matrix<float, Dynamic, 2> SendBuffer(Modes.local_matrix.rows(), 2);
+				SendBuffer.col(0) = Modes.local_matrix.col(i_loc).cwiseAbs().cast<float>();
+				SendBuffer.col(1) = Modes.local_matrix.col(i_loc).imag().binaryExpr(Modes.local_matrix.col(i_loc).real(), std::ptr_fun(atan2<double, double>)).cast<float>();
+				int col_root = BLACS::Cblacs_pnum(BLACS::ctxt, 0, BLACS::mycol);
+				BLACS::COMM_ACTIVE.Send(SendBuffer.data(), SendBuffer.rows() * SendBuffer.cols(), MPI::FLOAT, col_root, 1 /*tag*/);
 
-			sprintf(text, "%-79s\n", "part");
-			fwrite(text, 1, 80 * sizeof(char), pFile);
+				if (BLACS::myrow == 0)
+				{
+					MPI::Request::Waitall(BLACS::grid_rows, Irecv_requests.data());
 
-			const int part_number = 1;
-			fwrite(&part_number, 1, 1 * sizeof(int), pFile);
+					// Combine the buffers
+					for (int rb = 0; rb < ceil((double)export.rows() / Modes.rblock()); rb++)
+					{
+							int roffset = Modes.rblock() * floor(rb / BLACS::grid_rows);
+							int _nrows = min(Modes.rblock(), export.rows() - rb*Modes.rblock());
+							int pr_owner = rb % BLACS::grid_rows;
+							export.block(rb*Modes.rblock(), 0, _nrows, 1) = RecvBuffer(pr_owner, 0).block(roffset, 0, _nrows, 1);
+							export.block(rb*Modes.rblock(), 1, _nrows, 1) = RecvBuffer(pr_owner, 0).block(roffset, 1, _nrows, 1);
+					}
+				}
+				
+				// Print to disk from row 0
+				if (BLACS::myrow == 0)
+				{
+					cout << BLACS::myrank << " writing mode " << m << "...";
+					FILE *pFile;
 
-			sprintf(text, "%-79s\n", "hexa8");
-			fwrite(text, 1, 80 * sizeof(char), pFile);
+					stringstream filenameRE;
+					filenameRE << "mode" << m << ".Uabs";
 
-			//cout << "test 1" << endl;
+					pFile = fopen(filenameRE.str().c_str(), "wb");
 
-			MatrixXf export = Modes.local_matrix.col(i_mode).cwiseAbs().cast<float>();
-			fwrite(export.data(), 1, Modes.rows() * sizeof(float) / 4 , pFile);
+					char text[81];
+					sprintf(text, "Module of Mode %06i%-58s\n", m, "");
+					fwrite(text, 1, 80 * sizeof(char), pFile);
 
-			//cout << "test 2" << endl;
+					sprintf(text, "%-79s\n", "part");
+					fwrite(text, 1, 80 * sizeof(char), pFile);
 
-			fclose(pFile);
-			variables << "scalar per element: Mode" << m << "abs " << filename.str() << endl;
-			//cout << " abs" << m;
+					const int part_number = 1;
+					fwrite(&part_number, 1, 1 * sizeof(int), pFile);
 
-			stringstream filenameIM;
-			filenameIM << "mode" << m << ".ang";
-			
-			pFile = fopen(filenameIM.str().c_str(), "wb");
+					sprintf(text, "%-79s\n", "hexa8");
+					fwrite(text, 1, 80 * sizeof(char), pFile);
 
-			sprintf(text, "Angle of Mode %06i %-58s\n", m, "");
-			fwrite(text, 1, 80 * sizeof(char), pFile);
 
-			sprintf(text, "%-79s\n", "part");
-			fwrite(text, 1, 80 * sizeof(char), pFile);
+					
+					fwrite(export.data(), 1, Modes.rows() * sizeof(float) / 4, pFile);
 
-			fwrite(&part_number, 1, 1 * sizeof(int), pFile);
+					fclose(pFile);
+					//variables << "scalar per element: Mode" << m << "abs " << filenameRE.str() << endl;
 
-			sprintf(text, "%-79s\n", "hexa8");
-			fwrite(text, 1, 80 * sizeof(char), pFile);
 
-			export = Modes.local_matrix.col(i_mode).imag().binaryExpr(Modes.local_matrix.col(i_mode).real(), std::ptr_fun(atan2<double, double>)).cast<float>();
-			fwrite(export.data(), 1, Modes.rows() * sizeof(float) / 4, pFile);
+					stringstream filenameIM;
+					filenameIM << "mode" << m << ".Uang";
 
-			fclose(pFile);
-			variables << "scalar per element: Mode" << m << "ang " << filenameIM.str() << endl;
+					pFile = fopen(filenameIM.str().c_str(), "wb");
 
-			cout << "\tDONE" << endl;
+					sprintf(text, "Angle of Mode %06i %-58s\n", m, "");
+					fwrite(text, 1, 80 * sizeof(char), pFile);
+
+					sprintf(text, "%-79s\n", "part");
+					fwrite(text, 1, 80 * sizeof(char), pFile);
+
+					fwrite(&part_number, 1, 1 * sizeof(int), pFile);
+
+					sprintf(text, "%-79s\n", "hexa8");
+					fwrite(text, 1, 80 * sizeof(char), pFile);
+
+					fwrite(export.data() + Modes.rows(), 1, Modes.rows() * sizeof(float) / 4, pFile);
+
+					fclose(pFile);
+					//variables << "scalar per element: Mode" << m << "ang " << filenameIM.str() << endl;
+
+					cout << "\tDONE" << endl;
+				}
+			}
+
+			// Add this mode to the list of variables
+			if (BLACS::myrank == 0)
+			{
+				variables << "scalar per element: Mode" << m << "abs " << "mode" << m << ".Uabs" << endl;
+				variables << "scalar per element: Mode" << m << "ang " << "mode" << m << ".Uang" << endl;
+			}
 		}
 
-		std::ofstream ofs("dmd.case", std::ofstream::out);
-
-		ofs << "FORMAT" << endl
-			<< "type: ensight gold" << endl
-			<< "GEOMETRY" << endl
-			<< "model: dmd.geo" << endl
-			<< "VARIABLE" << endl
-			<< variables.str()
-			<< "TIME" << endl
-			<< "time set: 1 \nnumber of steps: 1 \nfilename start number: 0 \nfilename increment: 1 \ntime values: \n0" << endl;
-
-
-		ofs.close();
+		// Write the .case file
+		if (BLACS::myrank == 0)
+		{
+			std::ofstream ofs("dmd.case", std::ofstream::out);
+			ofs << "FORMAT" << endl
+				<< "type: ensight gold" << endl
+				<< "GEOMETRY" << endl
+				<< "model: dmd.geo" << endl
+				<< "VARIABLE" << endl
+				<< variables.str()
+				<< "TIME" << endl
+				<< "time set: 1 \nnumber of steps: 1 \nfilename start number: 0 \nfilename increment: 1 \ntime values: \n0" << endl;
+			ofs.close();
+		}
+		////////////////////////
 
 		prof.toc("DumpModes");
 		/////**************************************************************************************************/
