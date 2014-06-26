@@ -26,6 +26,7 @@
 
 
 #include "boost/lexical_cast.hpp"
+#include <tclap/CmdLine.h>
 
 #define USE_PROFILER
 #define USE_BOOST_CHRONO

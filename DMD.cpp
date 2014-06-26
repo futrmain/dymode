@@ -10,6 +10,7 @@
 #include "mpi.h"
 
 #include "boost/lexical_cast.hpp"
+#include <tclap/CmdLine.h>
 
 #include <iostream>
 #include <fstream>
@@ -48,6 +49,34 @@ int main(int argc, char* argv[])
 {
 	int mkl_res = mkl_cbwr_set(MKL_CBWR_COMPATIBLE);
 	MPI::Init();
+
+	// Deal with input parameters
+	int nfiles;
+	int nskip_step;
+	try 
+	{
+		TCLAP::CmdLine inp("Dymode, copyrighted for money", ' ', "0.1a");
+
+		TCLAP::ValueArg<int> nfilesArg("n", "nfiles", "Number of files to read", false /*req*/, 1/*default*/, "uint", inp);
+		TCLAP::ValueArg<int> nskipstepArg("s", "nskipstep", "Step between snapshots to read (read every other s snapshots", false /*req*/, 1/*default*/, "uint", inp);
+		TCLAP::ValueArg<string> datasetnameArg("d", "dataset", "dataset name within the HDF file(s)", false /*req*/, "snapshots_T"/*default*/, "string", inp);
+		TCLAP::ValueArg<string> filenameArg("f", "filename", "name of the data-file(s), without trailing number (rootname)", false /*req*/, "D:/DMD/DMD/x64/NNDEB/Re350_oscillating"/*default*/, "string", inp);
+
+
+
+		// Parse the argv array.
+		inp.parse(argc, argv);
+
+		// Get the value parsed by each arg. 
+		// Input arguments
+		nfiles = nfilesArg.getValue();
+		nskip_step = nskipstepArg.getValue();
+	}
+	catch (TCLAP::ArgException &e)  // catch any exceptions
+	{
+		std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
+	}
+
 	int rank, numtasks;
 	rank = MPI::COMM_WORLD.Get_rank();
 	numtasks = MPI::COMM_WORLD.Get_size();
@@ -66,9 +95,9 @@ int main(int argc, char* argv[])
 	MPI::COMM_WORLD.Barrier(); // For printing purposes
 
 
-	// Input arguments
-	const int nfiles = 1;// boost::lexical_cast<int>(argv[1]);
-	const int nskip_step = 5;// boost::lexical_cast<int>(argv[2]);
+	//// Input arguments
+	//const int nfiles = 1;// boost::lexical_cast<int>(argv[1]);
+	//const int nskip_step = 5;// boost::lexical_cast<int>(argv[2]);
 
 	if (BLACS::ROOT)
 	{
