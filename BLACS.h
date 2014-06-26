@@ -26,8 +26,11 @@ namespace peigen
 			void Cdgerv2d(int, int, int, double*, int, int, int);
 			void Cdgesd2d(int, int, int, double*, int, int, int);
 			int Cblacs_pnum(int ctxt, int prow, int pcol);
-
-			int numroc_(int*, int*, int*, int*, int*);
+			int numroc_(int* s, int* sblock, int* proc, int* origin, int* nproc);
+			inline int peigen_numroc(int s, int sblock, int proc, int origin, int nproc)
+			{ // Overload to be able to pass by value // FIXME there probably already is a C-style numroc in MKL
+				return numroc_(&s, &sblock, &proc, &origin, &nproc);
+			}
 			void chk1mat_(const int*, const int*, const int*, const int*, const int*, const int*, int*, const int*, int*);
 			void pchk2mat_(const int*, const int*, const int*, const int*, const int*, const int*, int*, const int*, const int*, const int*, const int*, const int*, const int*, const int*, int*, const int*, const int*, int*, const int*,  int*);
 
