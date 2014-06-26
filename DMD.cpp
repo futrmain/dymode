@@ -129,7 +129,7 @@ int main(int argc, char* argv[])
 
 	MPI::COMM_WORLD.Barrier(); // For printing purposes
 
-	dreader.read(dataset);
+	dreader.read(dataset, variables);
 
 	MPI::COMM_WORLD.Barrier(); // For printing purposes
 

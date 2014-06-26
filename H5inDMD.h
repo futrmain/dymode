@@ -58,6 +58,7 @@ namespace phdfp
 		}
 
 		void read(string dataset_name);
+		void read(string dataset_name, vector<string> variables);
 		void getextents(string fname, string dataset_name, hsize_t * dims);
 
 		peigen::SharedMatrix<MatrixXd> createShared(int rblock, int cblock, int nskip = 1);
@@ -176,6 +177,140 @@ namespace phdfp
 				cout << snapshots_per_file(proc) << ";" << endl << endl;
 		}*/
 			
+	}
+
+	inline void datasetreader::read(string dataset_name, vector<string> variables)
+	{
+		// Step 0: Figure out how many files for each process
+		int my_num_files = floor(nfiles / BLACS::numproc);
+
+		if (BLACS::myrank < nfiles % BLACS::numproc)
+		{
+			++my_num_files;
+		}
+
+
+		// Step 1: Figure out how much data will be read by this process
+		int nvars = 0;
+		for (string v : variables)
+		{
+			if (!(v == "null"))
+			{
+				++nvars;
+			}
+		}
+		int dimension_r = 0;
+		int dimension_c = 0;
+
+		MatrixXi snapshots_per_file(my_num_files, 1);
+
+
+		for (int f = 0; f < my_num_files; ++f)
+		{
+			int filenum = BLACS::myrank * floor(nfiles / BLACS::numproc) + min(BLACS::myrank, nfiles % BLACS::numproc) + f + 1;
+			string fname = filename(filenum);
+
+
+			hsize_t dims[2];
+			getextents(fname, dataset_name, dims);
+
+			assert(((dimension_r == 0) || (dimension_r == dims[1])) && "NUMBER OF ROWS MISMATCH FROM ONE FILE TO ANOTHER.");
+
+			snapshots_per_file(f, 0) = dims[0];
+			dimension_c += dims[0];
+			dimension_r = dims[1];
+			//cout << BLACS::myrank << " reads " << dimension_c << endl;
+		}
+		assert((dimension_r % variables.size()) == 0 && "The number of variables does not match the number of rows in the snapshots matrix.");
+		dimension_r = (dimension_r / variables.size()) * nvars;
+		virtual_dims[0] = dimension_r;
+
+
+		// Step 2: Allocate the memory
+		snapshots_per_process(BLACS::myrank, 0).resize(1, dimension_c);
+		input_data.resize(dimension_r, dimension_c);
+
+		cout << BLACS::myrank << " will read " << input_data.rows() << "x" << input_data.cols() << "data" << endl;
+
+		//// Step 3: Read
+		/*Note: From here the dimensions are switched to account for the fact that data is stored transposed on disk*/
+		size_t dims[2];
+		dims[1] = input_data.rows();
+		dims[0] = input_data.cols();
+		hsize_t virtual_filespace = H5Screate_simple(/*rank*/ 2, dims, NULL);
+
+		hyperslab2D sel;
+		sel.offset[0] = 0;
+		sel.offset[1] = 0;
+		sel.stride[0] = 1;
+		sel.stride[1] = 1;
+		sel.count[0] = 1;
+		sel.count[1] = 1;
+		for (int f = 0; f < my_num_files; ++f)
+		{
+			sel.block[1] = input_data.rows();
+			sel.block[0] = snapshots_per_file(f, 0);
+			H5Sselect_hyperslab(virtual_filespace, H5S_SELECT_SET, sel.offset, sel.stride, sel.count, sel.block);
+			
+
+			int filenum = BLACS::myrank * floor(nfiles / BLACS::numproc) + min(BLACS::myrank, nfiles % BLACS::numproc) + f + 1;
+			string fname = filename(filenum);
+			//cout << fname << endl << flush;
+
+			hid_t file = H5Fopen(fname.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+
+			hid_t dataset = H5Dopen2(file, dataset_name.c_str(), H5P_DEFAULT);
+			hsize_t fdim[2];
+			fdim[0] = snapshots_per_file(f, 0);
+			fdim[1] = variables.size() * (input_data.rows() / nvars);
+			hsize_t file_filespace = H5Screate_simple(/*rank*/ 2, fdim, NULL);
+			hyperslab2D fsel; 
+			fsel.block[1] = input_data.rows() / nvars;
+			fsel.block[0] = snapshots_per_file(f, 0);
+			fsel.offset[0] = 0;
+			fsel.offset[1] = 0;
+			fsel.stride[0] = 1;
+			fsel.stride[1] = 1;
+			fsel.count[0] = 1;
+			fsel.count[1] = 1;
+			auto op = H5S_SELECT_SET;
+			for (string v : variables)
+			{
+				if (!(v == "null"))
+				{
+					H5Sselect_hyperslab(file_filespace, op, fsel.offset, fsel.stride, fsel.count, fsel.block);
+					op = H5S_SELECT_OR;
+				}
+				fsel.offset[1] += fsel.block[1];
+			}
+
+
+			herr_t status = H5Dread(dataset, H5T_NATIVE_DOUBLE, virtual_filespace, file_filespace, H5P_DEFAULT, input_data.data());
+
+			H5Dclose(dataset);
+			H5Fclose(file);
+			sel.offset[0] += sel.block[0];
+		}
+		H5Sclose(virtual_filespace);
+
+		// Step 4: Exchange how many snapshots for each process
+		for (int proc = 0; proc < BLACS::numproc; ++proc)
+		{
+			int n_snaps = snapshots_per_process(proc, 0).size();
+			MPI::COMM_WORLD.Bcast(&n_snaps, 1, MPI::INT, proc);
+			snapshots_per_process(proc, 0).resize(n_snaps);
+		}
+
+		// Step 5: Broadcast the number of rows for processes that don't have any file to open
+		// It is assumed that at least proc 0 has a file to read...
+		MPI::COMM_WORLD.Bcast(virtual_dims, 1, MPI::INT, 0);
+
+		/*if (BLACS::myrank == 2)
+		{
+		for (int proc = 0; proc < BLACS::numproc; ++proc)
+		cout << snapshots_per_file(proc) << ";" << endl << endl;
+		}*/
+
 	}
 
 	
