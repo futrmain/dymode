@@ -10,6 +10,7 @@
 #include "mpi.h"
 
 #include "boost/lexical_cast.hpp"
+#include <boost/algorithm/string.hpp>
 #include <tclap/CmdLine.h>
 
 #include <iostream>
@@ -53,6 +54,7 @@ int main(int argc, char* argv[])
 	// Deal with input parameters
 	int nfiles;
 	int nskip_step;
+	vector<string> variables;
 	try 
 	{
 		TCLAP::CmdLine inp("Dymode, copyrighted for money", ' ', "0.1a");
@@ -61,6 +63,7 @@ int main(int argc, char* argv[])
 		TCLAP::ValueArg<int> nskipstepArg("s", "nskipstep", "Step between snapshots to read (read every other s snapshots", false /*req*/, 1/*default*/, "uint", inp);
 		TCLAP::ValueArg<string> datasetnameArg("d", "dataset", "dataset name within the HDF file(s)", false /*req*/, "snapshots_T"/*default*/, "string", inp);
 		TCLAP::ValueArg<string> filenameArg("f", "filename", "name of the data-file(s), without trailing number (rootname)", false /*req*/, "D:/DMD/DMD/x64/NNDEB/Re350_oscillating"/*default*/, "string", inp);
+		TCLAP::ValueArg<string> variablesArg("i", "variables", "name of the input variable(s) to keep in the snapshot matrix before starting the DMD. A name must be provided for each variable present in the disk data, separated by commas. Use 'null' in order to not use a variable. For example, if the data on disk contains the variables u, v, w, p but you only want to use u and p, use --variables u,null,null,p", false /*req*/, "null"/*default*/, "string", inp);
 
 
 
@@ -71,6 +74,9 @@ int main(int argc, char* argv[])
 		// Input arguments
 		nfiles = nfilesArg.getValue();
 		nskip_step = nskipstepArg.getValue();
+
+		// parse the variables name
+		boost::split(variables, variablesArg.getValue(), boost::is_any_of(","));
 	}
 	catch (TCLAP::ArgException &e)  // catch any exceptions
 	{
@@ -102,6 +108,10 @@ int main(int argc, char* argv[])
 	if (BLACS::ROOT)
 	{
 		std::cout << "Input arguments: " << nfiles << ", " << nskip_step << endl << flush;
+		for (string var : variables)
+		{
+			std::cout << "one variable is: " << var << endl << flush;
+		}
 	}
 
 
