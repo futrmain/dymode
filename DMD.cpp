@@ -45,6 +45,45 @@ using namespace Eigen;
 using namespace peigen;
 using namespace phdfp;
 
+void set80line(string& s)
+{
+	s.resize(80, ' ');
+	s.back() = '\n';
+}
+void gold_print_header(int mode, string part, string var, string element, FILE *pFile)
+{
+	stringstream stext;
+	string text;
+
+	stext << part << " of Mode "
+		<< setfill('0') << setw(6) << mode
+		<< " for " << var;
+	text = stext.str();
+	set80line(text);
+
+	fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
+	stext.clear();//clear any bits set
+	stext.str(std::string());
+
+	stext << "part";
+	text = stext.str();
+	set80line(text);
+	
+	fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
+	stext.clear();//clear any bits set
+	stext.str(std::string());
+
+	const int part_number = 1;
+	fwrite(&part_number, 1, 1 * sizeof(int), pFile);
+
+	stext << element;
+	text = stext.str();
+	set80line(text);
+
+	fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
+}
+
+
 
 int main(int argc, char* argv[])
 {
@@ -539,7 +578,7 @@ int main(int argc, char* argv[])
 		// Find which column of Modes has the most energy
 		int NMODES = 5; // Number of modes to print
 		MatrixXd::Index i_mode, x_mode;
-		stringstream variables;
+		stringstream variables_gold;
 
 		//cout << BLACS::myrank << " amplitudes " << amplitudes << endl << endl;
 
@@ -613,64 +652,54 @@ int main(int argc, char* argv[])
 				if (BLACS::myrow == 0)
 				{
 					cout << BLACS::myrank << " writing mode " << m << "...";
+					cout << BLACS::myrank << " Np =  " << dreader.Np << "...";
 					FILE *pFile;
 
-					stringstream filenameRE;
-					filenameRE << "mode" << m << ".Uabs";
+					int offset_gold = 0;
+					for (string var : variables)
+					{
+						if (!(var == "null"))
+						{
+							stringstream filenameRE;
+							filenameRE << "mode" << setfill('0') << setw(6) << m << "." << var << ".abs";
 
-					pFile = fopen(filenameRE.str().c_str(), "wb");
+							pFile = fopen(filenameRE.str().c_str(), "wb");
 
-					char text[81];
-					sprintf(text, "Module of Mode %06i%-58s\n", m, "");
-					fwrite(text, 1, 80 * sizeof(char), pFile);
+							gold_print_header(m, "Module", var, "hexa8", pFile);
 
-					sprintf(text, "%-79s\n", "part");
-					fwrite(text, 1, 80 * sizeof(char), pFile);
+							fwrite(export.data() + offset_gold, sizeof(float), dreader.Np, pFile);
 
-					const int part_number = 1;
-					fwrite(&part_number, 1, 1 * sizeof(int), pFile);
+							fclose(pFile);
 
-					sprintf(text, "%-79s\n", "hexa8");
-					fwrite(text, 1, 80 * sizeof(char), pFile);
+							stringstream filenameIM;
+							filenameIM << "mode" << setfill('0') << setw(6) << m << "." << var << ".ang";
 
+							pFile = fopen(filenameIM.str().c_str(), "wb");
 
+							gold_print_header(m, "Angle", var, "hexa8", pFile);
 
-					fwrite(export.data(), 1, Modes.rows() * sizeof(float) / 4, pFile);
+							fwrite(export.data() + export.rows() + offset_gold, sizeof(float), dreader.Np, pFile);
 
-					fclose(pFile);
-					//variables << "scalar per element: Mode" << m << "abs " << filenameRE.str() << endl;
+							fclose(pFile);
 
-
-					stringstream filenameIM;
-					filenameIM << "mode" << m << ".Uang";
-
-					pFile = fopen(filenameIM.str().c_str(), "wb");
-
-					sprintf(text, "Angle of Mode %06i %-58s\n", m, "");
-					fwrite(text, 1, 80 * sizeof(char), pFile);
-
-					sprintf(text, "%-79s\n", "part");
-					fwrite(text, 1, 80 * sizeof(char), pFile);
-
-					fwrite(&part_number, 1, 1 * sizeof(int), pFile);
-
-					sprintf(text, "%-79s\n", "hexa8");
-					fwrite(text, 1, 80 * sizeof(char), pFile);
-
-					fwrite(export.data() + Modes.rows(), 1, Modes.rows() * sizeof(float) / 4, pFile);
-
-					fclose(pFile);
-					//variables << "scalar per element: Mode" << m << "ang " << filenameIM.str() << endl;
-
+							offset_gold += dreader.Np;
+						}
+					}
 					cout << "\tDONE" << endl;
 				}
 			}
 
-			// Add this mode to the list of variables
+			// Add all modes/variables to the list of variables
 			if (BLACS::myrank == 0)
 			{
-				variables << "scalar per element: Mode" << m << "abs " << "mode" << m << ".Uabs" << endl;
-				variables << "scalar per element: Mode" << m << "ang " << "mode" << m << ".Uang" << endl;
+				for (string var : variables)
+				{
+					if (!(var == "null"))
+					{
+						variables_gold << "scalar per element: " << var << m << "abs " << "mode" << setfill('0') << setw(6) << m << "." << var << ".abs" << endl;
+						variables_gold << "scalar per element: " << var << m << "ang " << "mode" << setfill('0') << setw(6) << m << "." << var << ".ang" << endl;
+					}
+				}
 			}
 		}
 
@@ -683,7 +712,7 @@ int main(int argc, char* argv[])
 				<< "GEOMETRY" << endl
 				<< "model: dmd.geo" << endl
 				<< "VARIABLE" << endl
-				<< variables.str()
+				<< variables_gold.str()
 				<< "TIME" << endl
 				<< "time set: 1 \nnumber of steps: 1 \nfilename start number: 0 \nfilename increment: 1 \ntime values: \n0" << endl;
 			ofs.close();
