@@ -10,6 +10,7 @@
 #include "mpi.h"
 
 #include "boost/lexical_cast.hpp"
+#include <boost/algorithm/string.hpp>
 #include <tclap/CmdLine.h>
 
 #include <iostream>
@@ -44,6 +45,45 @@ using namespace Eigen;
 using namespace peigen;
 using namespace phdfp;
 
+void set80line(string& s)
+{
+	s.resize(80, ' ');
+	s.back() = '\n';
+}
+void gold_print_header(int mode, string part, string var, string element, FILE *pFile)
+{
+	stringstream stext;
+	string text;
+
+	stext << part << " of Mode "
+		<< setfill('0') << setw(6) << mode
+		<< " for " << var;
+	text = stext.str();
+	set80line(text);
+
+	fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
+	stext.clear();//clear any bits set
+	stext.str(std::string());
+
+	stext << "part";
+	text = stext.str();
+	set80line(text);
+	
+	fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
+	stext.clear();//clear any bits set
+	stext.str(std::string());
+
+	const int part_number = 1;
+	fwrite(&part_number, 1, 1 * sizeof(int), pFile);
+
+	stext << element;
+	text = stext.str();
+	set80line(text);
+
+	fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
+}
+
+
 
 int main(int argc, char* argv[])
 {
@@ -53,6 +93,8 @@ int main(int argc, char* argv[])
 	// Deal with input parameters
 	int nfiles;
 	int nskip_step;
+	vector<string> variables;
+	string dataset;
 	try 
 	{
 		TCLAP::CmdLine inp("Dymode, copyrighted for money", ' ', "0.1a");
@@ -61,6 +103,7 @@ int main(int argc, char* argv[])
 		TCLAP::ValueArg<int> nskipstepArg("s", "nskipstep", "Step between snapshots to read (read every other s snapshots", false /*req*/, 1/*default*/, "uint", inp);
 		TCLAP::ValueArg<string> datasetnameArg("d", "dataset", "dataset name within the HDF file(s)", false /*req*/, "snapshots_T"/*default*/, "string", inp);
 		TCLAP::ValueArg<string> filenameArg("f", "filename", "name of the data-file(s), without trailing number (rootname)", false /*req*/, "D:/DMD/DMD/x64/NNDEB/Re350_oscillating"/*default*/, "string", inp);
+		TCLAP::ValueArg<string> variablesArg("i", "variables", "name of the input variable(s) to keep in the snapshot matrix before starting the DMD. A name must be provided for each variable present in the disk data, separated by commas. Use 'null' in order to not use a variable. For example, if the data on disk contains the variables u, v, w, p but you only want to use u and p, use --variables u,null,null,p", false /*req*/, "null"/*default*/, "string", inp);
 
 
 
@@ -71,6 +114,10 @@ int main(int argc, char* argv[])
 		// Input arguments
 		nfiles = nfilesArg.getValue();
 		nskip_step = nskipstepArg.getValue();
+
+		// parse the variables name
+		boost::split(variables, variablesArg.getValue(), boost::is_any_of(","));
+		dataset = datasetnameArg.getValue();
 	}
 	catch (TCLAP::ArgException &e)  // catch any exceptions
 	{
@@ -102,6 +149,10 @@ int main(int argc, char* argv[])
 	if (BLACS::ROOT)
 	{
 		std::cout << "Input arguments: " << nfiles << ", " << nskip_step << endl << flush;
+		for (string var : variables)
+		{
+			std::cout << "one variable is: " << var << endl << flush;
+		}
 	}
 
 
@@ -117,7 +168,7 @@ int main(int argc, char* argv[])
 
 	MPI::COMM_WORLD.Barrier(); // For printing purposes
 
-	dreader.read("snapshots_T");
+	dreader.read(dataset, variables);
 
 	MPI::COMM_WORLD.Barrier(); // For printing purposes
 
@@ -527,7 +578,7 @@ int main(int argc, char* argv[])
 		// Find which column of Modes has the most energy
 		int NMODES = 5; // Number of modes to print
 		MatrixXd::Index i_mode, x_mode;
-		stringstream variables;
+		stringstream variables_gold;
 
 		//cout << BLACS::myrank << " amplitudes " << amplitudes << endl << endl;
 
@@ -601,64 +652,54 @@ int main(int argc, char* argv[])
 				if (BLACS::myrow == 0)
 				{
 					cout << BLACS::myrank << " writing mode " << m << "...";
+					cout << BLACS::myrank << " Np =  " << dreader.Np << "...";
 					FILE *pFile;
 
-					stringstream filenameRE;
-					filenameRE << "mode" << m << ".Uabs";
+					int offset_gold = 0;
+					for (string var : variables)
+					{
+						if (!(var == "null"))
+						{
+							stringstream filenameRE;
+							filenameRE << "mode" << setfill('0') << setw(6) << m << "." << var << ".abs";
 
-					pFile = fopen(filenameRE.str().c_str(), "wb");
+							pFile = fopen(filenameRE.str().c_str(), "wb");
 
-					char text[81];
-					sprintf(text, "Module of Mode %06i%-58s\n", m, "");
-					fwrite(text, 1, 80 * sizeof(char), pFile);
+							gold_print_header(m, "Module", var, "hexa8", pFile);
 
-					sprintf(text, "%-79s\n", "part");
-					fwrite(text, 1, 80 * sizeof(char), pFile);
+							fwrite(export.data() + offset_gold, sizeof(float), dreader.Np, pFile);
 
-					const int part_number = 1;
-					fwrite(&part_number, 1, 1 * sizeof(int), pFile);
+							fclose(pFile);
 
-					sprintf(text, "%-79s\n", "hexa8");
-					fwrite(text, 1, 80 * sizeof(char), pFile);
+							stringstream filenameIM;
+							filenameIM << "mode" << setfill('0') << setw(6) << m << "." << var << ".ang";
 
+							pFile = fopen(filenameIM.str().c_str(), "wb");
 
+							gold_print_header(m, "Angle", var, "hexa8", pFile);
 
-					fwrite(export.data(), 1, Modes.rows() * sizeof(float) / 4, pFile);
+							fwrite(export.data() + export.rows() + offset_gold, sizeof(float), dreader.Np, pFile);
 
-					fclose(pFile);
-					//variables << "scalar per element: Mode" << m << "abs " << filenameRE.str() << endl;
+							fclose(pFile);
 
-
-					stringstream filenameIM;
-					filenameIM << "mode" << m << ".Uang";
-
-					pFile = fopen(filenameIM.str().c_str(), "wb");
-
-					sprintf(text, "Angle of Mode %06i %-58s\n", m, "");
-					fwrite(text, 1, 80 * sizeof(char), pFile);
-
-					sprintf(text, "%-79s\n", "part");
-					fwrite(text, 1, 80 * sizeof(char), pFile);
-
-					fwrite(&part_number, 1, 1 * sizeof(int), pFile);
-
-					sprintf(text, "%-79s\n", "hexa8");
-					fwrite(text, 1, 80 * sizeof(char), pFile);
-
-					fwrite(export.data() + Modes.rows(), 1, Modes.rows() * sizeof(float) / 4, pFile);
-
-					fclose(pFile);
-					//variables << "scalar per element: Mode" << m << "ang " << filenameIM.str() << endl;
-
+							offset_gold += dreader.Np;
+						}
+					}
 					cout << "\tDONE" << endl;
 				}
 			}
 
-			// Add this mode to the list of variables
+			// Add all modes/variables to the list of variables
 			if (BLACS::myrank == 0)
 			{
-				variables << "scalar per element: Mode" << m << "abs " << "mode" << m << ".Uabs" << endl;
-				variables << "scalar per element: Mode" << m << "ang " << "mode" << m << ".Uang" << endl;
+				for (string var : variables)
+				{
+					if (!(var == "null"))
+					{
+						variables_gold << "scalar per element: " << var << m << "abs " << "mode" << setfill('0') << setw(6) << m << "." << var << ".abs" << endl;
+						variables_gold << "scalar per element: " << var << m << "ang " << "mode" << setfill('0') << setw(6) << m << "." << var << ".ang" << endl;
+					}
+				}
 			}
 		}
 
@@ -671,7 +712,7 @@ int main(int argc, char* argv[])
 				<< "GEOMETRY" << endl
 				<< "model: dmd.geo" << endl
 				<< "VARIABLE" << endl
-				<< variables.str()
+				<< variables_gold.str()
 				<< "TIME" << endl
 				<< "time set: 1 \nnumber of steps: 1 \nfilename start number: 0 \nfilename increment: 1 \ntime values: \n0" << endl;
 			ofs.close();
