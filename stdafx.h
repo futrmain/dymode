@@ -26,6 +26,7 @@
 
 
 #include "boost/lexical_cast.hpp"
+#include <boost/algorithm/string.hpp>
 #include <tclap/CmdLine.h>
 
 #define USE_PROFILER
