@@ -38,6 +38,7 @@
 
 #include "ScaEigenSolver.h"
 #include "Vandermonde.h"
+#include "GEOinDMD.h"
 
 
 using namespace std;
@@ -140,6 +141,12 @@ int main(int argc, char* argv[])
 	//BLACS::printGrid();
 
 	MPI::COMM_WORLD.Barrier(); // For printing purposes
+	
+
+
+	geofilereader georead("dmd.geo");
+
+
 
 
 	//// Input arguments
