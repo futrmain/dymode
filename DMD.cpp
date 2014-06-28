@@ -67,23 +67,6 @@ void gold_print_header(int mode, string complex_part, string var, FILE *pFile)
 	fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
 	stext.clear();//clear any bits set
 	stext.str(std::string());
-
-	//stext << "part";
-	//text = stext.str();
-	//set80line(text);
-	//
-	//fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
-	//stext.clear();//clear any bits set
-	//stext.str(std::string());
-
-	//const int part_number = 1;
-	//fwrite(&part_number, 1, 1 * sizeof(int), pFile);
-
-	//stext << element;
-	//text = stext.str();
-	//set80line(text);
-
-	//fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
 }
 
 void gold_print_values(MatrixXf values, geofilereader geo, FILE *pFile)
@@ -138,8 +121,6 @@ int main(int argc, char* argv[])
 
 	DoProfiler prof;
 
-	/*cout.precision(2 * std::numeric_limits< double >::digits10);*/
-
 	// Create the BLACS grid
 	BLACS::init(numtasks);
 	if (BLACS::ROOT)
@@ -181,25 +162,6 @@ int main(int argc, char* argv[])
 	// Note: If needed, use the MPI::Intracomm BLACS::COMM_ACTIVE to avoid deadlocks with incative processes
 	if (BLACS::active) // Only processes that have a place in the grid
 	{
-
-		//
-
-		//dreader.getextents("snapshots_T");
-
-		////cout << "rows: " << dreader.rows() << ", cols: " << dreader.cols() << endl << flush;
-
-		//dreader.select_every(nskip_step);
-		////dreader.select_all();
-		//dreader.read("snapshots_T");
-
-		////std::cout << "READING DONE." << endl << flush;
-
-
-		//SharedMatrix<MatrixXd> snaps = dreader.datamat;
-		//prof.toc("Read");
-
-		//cout << snaps;
-
 		///**************************************************************************************************/
 		///*-------------------------------------     START OF DMD     -------------------------------------*/
 		///**************************************************************************************************/
@@ -268,32 +230,11 @@ int main(int argc, char* argv[])
 		MPI::COMM_WORLD.Barrier(); // For printing purposes
 		
 		prof.tic("MultiplyB");
-		//SharedMatrix<MatrixXd> S2(4*Np, NtperF - 1);
-		// Do a virtual shift
-		/*S2.local_matrix = MatrixXd::Ones(S2.local_matrix.rows(), S2.local_matrix.cols()) * rank;
-		for (int c = S2.cblock-1; c < S2.local_matrix.cols(); c+=S2.cblock)
-		{
-		S2.local_matrix.col(c) = MatrixXd::Ones(S2.local_matrix.rows(), 1) * (BLACS::grid_cols*BLACS::myrow+((rank+1)%BLACS::grid_cols));
-		}
-		if (ROOT)
-
-
-		cout << "HERE COMES S2" << endl << flush;
-		cout << S2 ;*/
-
-
-		//cout << "HERE COMES U BEFORE" << endl << flush;
-		//cout << svd.matrixU << endl << endl;
+		
 		SharedMatrix<MatrixXd> tmpMat = svd.matrixU.transpose() * snaps.block(0, 1, snaps.rows(), snaps.cols() - 1);
-
-		/*cout << "HERE COMES tmpMat" << endl << flush;
-		cout << tmpMat << endl << endl;*/
-
 
 		snaps.clear();
 		SharedMatrix<MatrixXd> B = tmpMat * svd.matrixVt.transpose();
-
-
 
 		svd.matrixU.clear();
 
@@ -313,7 +254,6 @@ int main(int argc, char* argv[])
 			cout.precision(std::numeric_limits< double >::digits10);
 			cout << "pinv_tol: " << pinv_tol << endl << flush;
 			std::cout.copyfmt(std::ios(NULL));
-			//assert(pinv_tol == 1.4825790295167806e-011 && "Tolerance for pseudo-inverse differs");
 		}
 		for (int i = 0; i < B.local_matrix.cols(); i++)
 		{
