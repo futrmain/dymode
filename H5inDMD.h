@@ -235,7 +235,8 @@ namespace phdfp
 		snapshots_per_process(BLACS::myrank, 0).resize(1, dimension_c);
 		input_data.resize(dimension_r, dimension_c);
 
-		cout << BLACS::myrank << " will read " << input_data.rows() << "x" << input_data.cols() << "data" << endl;
+		//cout.precision(6);
+		cout << BLACS::myrank << " will read " << input_data.rows() << "x" << input_data.cols() << " values (" << input_data.rows() * input_data.cols() * 8 * 0.000001 << " MiB)" << endl;
 
 		//// Step 3: Read
 		/*Note: From here the dimensions are switched to account for the fact that data is stored transposed on disk*/
