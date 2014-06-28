@@ -23,23 +23,18 @@ struct gold_part
 class geofilereader
 {
 private:
-	map<string, int> np;
-	void initialize_np()
-	{
-		np = { { "point", 1 }, { "gpoint", 1 }, { "bar2", 2 }, { "g_bar2", 2 }, { "bar3", 3 }, { "g_bar3", 3 }, { "tria3", 3 }, { "g_tria3", 3 }, { "tria6", 6 }, { "g_tria6", 6 }, { "quad4", 4 }, { "g_quad4", 4 }, { "quad8", 8 }, { "g_quad8", 8 }, { "tetra4", 4 }, { "g_tetra4", 4 }, { "tetra10", 10 }, { "g_tetra10", 10 }, { "pyramid5", 5 }, { "g_pyramid5", 5 }, { "pyramid13", 13 }, { "g_pyramid13", 13 }, { "penta6", 6 }, { "g_penta6", 6 }, { "penta15", 15 }, { "g_penta15", 15 }, { "hexa8", 8 }, { "g_hexa8", 8 }, { "hexa20", 20 }, { "g_hexa20", 20 }, { "nsided", -1 }, { "g_nsided", -1 }, { "nfaced", -1 }, { "g_nfaced", -1 } };
-	}
+	const map<string, int> np = { { "point", 1 }, { "gpoint", 1 }, { "bar2", 2 }, { "g_bar2", 2 }, { "bar3", 3 }, { "g_bar3", 3 }, { "tria3", 3 }, { "g_tria3", 3 }, { "tria6", 6 }, { "g_tria6", 6 }, { "quad4", 4 }, { "g_quad4", 4 }, { "quad8", 8 }, { "g_quad8", 8 }, { "tetra4", 4 }, { "g_tetra4", 4 }, { "tetra10", 10 }, { "g_tetra10", 10 }, { "pyramid5", 5 }, { "g_pyramid5", 5 }, { "pyramid13", 13 }, { "g_pyramid13", 13 }, { "penta6", 6 }, { "g_penta6", 6 }, { "penta15", 15 }, { "g_penta15", 15 }, { "hexa8", 8 }, { "g_hexa8", 8 }, { "hexa20", 20 }, { "g_hexa20", 20 }, { "nsided", -1 }, { "g_nsided", -1 }, { "nfaced", -1 }, { "g_nfaced", -1 } };
 
 public:
 	string filename;
 	vector<gold_part> parts;
 	
 
-	geofilereader();
-	~geofilereader() { initialize_np(); };
+	geofilereader() {};
+	~geofilereader() {};
 
 	geofilereader(const string& geofile) : filename(geofile)
 	{
-		initialize_np();
 		parse(geofile);
 	};
 
@@ -47,7 +42,11 @@ public:
 	{
 		char line[81], subLine[81], nameline[81];
 		line[80] = '\0'; subLine[80] = '\0'; nameline[80] = '\0';
+#ifdef _WIN32
+		ifstream input = ifstream(geofile.c_str(), ios::in | ios::binary);
+#else
 		ifstream input = ifstream(geofile.c_str(), ios::in);
+#endif
 
 		int lineRead;
 
@@ -58,11 +57,14 @@ public:
 		input.read(line, 80);
 		input.read(line, 80);
 		input.read(line, 80);
+		cout << BLACS::myrank << " : " << line << endl;
 
 		bool NodeIdsListed, ElementIdsListed;
 		// Read the node id and element id lines.
 		input.read(line, 80);
+		cout << BLACS::myrank << " : " << line << endl;
 		std::sscanf(line, " %*s %*s %s", subLine);
+		cout << BLACS::myrank << " : " << subLine << endl;
 		if (strncmp(subLine, "given", 5) == 0)
 		{
 			NodeIdsListed = true;
@@ -77,7 +79,9 @@ public:
 		}
 
 		input.read(line, 80);
+		cout << BLACS::myrank << " : " << line << endl;
 		std::sscanf(line, " %*s %*s %s", subLine);
+		cout << BLACS::myrank << " : " << subLine << endl;
 		if (strncmp(subLine, "given", 5) == 0)
 		{
 			ElementIdsListed = true;
@@ -92,11 +96,14 @@ public:
 		}
 
 		input.read(line, 80); // "extents" or "part"
+		cout << BLACS::myrank << " : " << line << endl;
 		if (strncmp(line, "extents", 7) == 0)
 		{
 			// Skipping the extents.
-			input.seekg(6 * sizeof(float), ios::cur);
+			//input.seekg(6 * sizeof(float), ios::cur);
+			input.ignore(6 * sizeof(float)); // "part"
 			input.read(line, 80); // "part"
+			cout << BLACS::myrank << " : " << line << endl;
 		}
 
 		while (input.good() && strncmp(line, "part", 4) == 0)
@@ -107,30 +114,32 @@ public:
 			assert(curr_part.number >= 0 && curr_part.number < 65536 && "The part numer found in the geometry file is not correct.");
 
 			input.read(line, 80); // part description line
+			cout << BLACS::myrank << " : " << line << endl;
 
-			input.read(line, 80);
+			input.read(line, 80); // coordinates
+			cout << BLACS::myrank << " : " << line << endl;
 			assert(strncmp(line, "block", 5) && "Block syntax is not supported.");
-			assert(!strncmp(line, "coordinates", 5) && "Expected to find 'coordinates' in geo file");
+			assert(!strncmp(line, "coordinates", 11) && "Expected to find 'coordinates' in geo file");
 
 			int nel, nnodes;
 			string tel;
 
 			input.read((char*)(&nnodes), sizeof(int)); // Number of nodes
-			//curr_part.nelements.push_back(nel);
+			cout << BLACS::myrank << "nnodes : " << nnodes << endl;
 
 			if (NodeIdsListed)
 			{	// Skip element IDs
-				input.seekg(nnodes * sizeof(int), ios::cur);
+				input.ignore(nnodes * sizeof(int));
 			}
-			input.seekg(3 * nnodes * sizeof(float), ios::cur); // Skip node coordinates
+			input.ignore(3 * nnodes * sizeof(float)); // Skip node coordinates
 
 			input.read(line, 80); // element type
+			cout << BLACS::myrank << " : " << line << endl;
 			std::sscanf(line, " %s", subLine);
-			while (input.good())
+			auto it = np.find(subLine);
+			cout << BLACS::myrank << " : " << subLine << endl;
+			while (input.good() && it != np.end())
 			{
-				auto it = np.find("subLine");
-				assert(it != np.end() && "The element type is not a valis Ensight gold type");
-				
 				int npoints; 
 				npoints = it->second;
 
@@ -139,20 +148,20 @@ public:
 				input.read((char*)(&nel), sizeof(int)); // Number of elements
 				curr_part.nelements.push_back(nel);
 
-				parts.push_back(curr_part);
+				
 
 				if (ElementIdsListed)
 				{	// Skip element IDs
-					input.seekg(nel * sizeof(int), ios::cur);
+					input.ignore(nel * sizeof(int));
 				}
 				if (npoints > 0)
 				{
-					input.seekg(npoints * nel * sizeof(int), ios::cur); // skip elements
+					input.ignore(npoints * nel * sizeof(int)); // skip elements
 				}
 				else // n-sided hell
 				{
 					// read the number of points for each element
-					int* nnp = new int(nel);
+					int* nnp = new int[nel];
 					input.read((char*)nnp, nel * sizeof(int));
 
 					int total = 0;
@@ -161,14 +170,21 @@ public:
 						total += nnp[k];
 					}
 
-					input.seekg(total * sizeof(int), ios::cur); // skip elements
+
+
+					input.ignore(total * sizeof(int)); // skip elements
+					delete[] nnp;
 				}
 
-				input.read(line, 80); // element type
+				input.read(line, 80); // element type or "part"
+				cout << BLACS::myrank << " : " << line << endl;
 				std::sscanf(line, " %s", subLine);
+				it = np.find(subLine);
 			}
 
-			input.read(line, 80); // "part"
+			parts.push_back(curr_part);
+			//input.read(line, 80); // "part"
+			cout << BLACS::myrank << " : " << line << endl;
 		}
 
 		input.close();
