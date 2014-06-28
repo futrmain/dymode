@@ -115,7 +115,7 @@ int main(int argc, char* argv[])
 	
 
 
-	geofilereader georead("D:/DMD/DMD/x64/NNDEB/pTube_RHdoor00000.geo");
+	geofilereader georead(opt.geofile);
 
 	for (int r = 0; r < BLACS::numproc; ++r)
 	{
@@ -156,7 +156,7 @@ int main(int argc, char* argv[])
 	if (BLACS::ROOT)
 		std::cout << "Creating Reader" << endl << flush;
 
-	datasetreader dreader(opt.nfiles, "D:/DMD/DMD/x64/NNDEB/Re350_oscillating");
+	datasetreader dreader(opt.nfiles, opt.filename);
 	if (BLACS::ROOT)
 		std::cout << "Datareader created." << endl << flush;
 
@@ -232,12 +232,15 @@ int main(int argc, char* argv[])
 			cout << "HERE COMES Vt" << endl << flush;
 			cout << svd.matrixVt;*/
 
-
-		double r_svd = svd.residual(snaps.block(0, 0, 4 * Np, Nt - 1));
+		if (opt.dispResiduals)
+		{
+			double r_svd = svd.global_residual(snaps.block(0, 0, 4 * Np, Nt - 1));
+			if (ROOT)
+				cout << "Residual from SVD: " << r_svd << endl << flush;
+		}
+		
 		//if (ROOT)
-		cout << "Residual from SVD: " << r_svd << endl << flush;
-
-		cout << "Residual GLOBAL from SVD: " << svd.global_residual(snaps.block(0, 0, 4 * Np, Nt - 1)) << endl << flush;
+		
 
 
 		prof.toc("SVD", "SVD done in: ");
@@ -334,11 +337,15 @@ int main(int argc, char* argv[])
 
 
 
-		ScaEigenSolver<MatrixXd> eig(B, true, EigSerial);
+		ScaEigenSolver<MatrixXd> eig(B, true, opt.eigSolver);
 
-		double r_eig = eig.global_residual(B);
-		if (ROOT)
-			cout << "Residual from Eigen problem: " << r_eig << endl << flush;
+		if (opt.dispResiduals)
+		{
+			double r_eig = eig.global_residual(B);
+			if (ROOT)
+				cout << "Residual from Eigen problem: " << r_eig << endl << flush;
+		}
+		
 
 		// Matrix of eigen vectors
 		SharedMatrix<MatrixXcd> X = eig.eigenVectors();
@@ -495,13 +502,24 @@ int main(int argc, char* argv[])
 		Modes.ColScale(weights);
 
 
-		SharedMatrix<MatrixXcd> Vandermonde = vander<MatrixXcd>(lambdas, Modes.cols(), Modes.rblock(), Modes.cblock());
-		//cout << Vandermonde << endl;
+		
+		
+		if (opt.dispResiduals)
+		{
+			SharedMatrix<MatrixXcd> Vandermonde = vander<MatrixXcd>(lambdas, Modes.cols(), Modes.rblock(), Modes.cblock());
+			//cout << Vandermonde << endl;
 
-		SharedMatrix<MatrixXcd> reconstruct = snaps.cast<complex<double>>().block(0, 0, 4 * Np, Nt - 1);
-		reconstruct.pgemm(1., Modes, Vandermonde, -1.);
-		//cout << reconstruct << endl;
-		cout << "Residual from Modes: " << reconstruct.localBlock().cwiseAbs().maxCoeff() << endl;
+			SharedMatrix<MatrixXcd> reconstruct = snaps.cast<complex<double>>().block(0, 0, 4 * Np, Nt - 1);
+			reconstruct.pgemm(1., Modes, Vandermonde, -1.);
+			//cout << reconstruct << endl;
+
+			double r_loc = reconstruct.localBlock().cwiseAbs().maxCoeff();
+			double r;
+			BLACS::COMM_ACTIVE.Reduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
+			if (ROOT)
+				cout << "Residual from Modes: " << r << endl;
+		}
+		
 
 		//cout << Modes;
 		prof.toc("LinearSolve", "Eigen problem solved in: ");
@@ -538,7 +556,7 @@ int main(int argc, char* argv[])
 			spectrum.col(0) = lambdas.real().cwiseQuotient(lambdas.cwiseAbs()).array().acos().matrix();
 			spectrum.col(1) = amplitudes.transpose();
 
-			std::ofstream s("spectrum.txt");
+			std::ofstream s(opt.outdir + "spectrum.txt");
 			if (s.is_open())
 			{
 				s << spectrum << '\n';
@@ -547,7 +565,7 @@ int main(int argc, char* argv[])
 			cout << "DONE." << endl;
 
 			cout << "Printing eigenvalues...\t";
-			std::ofstream l("eigenvalues.txt");
+			std::ofstream l(opt.outdir + "eigenvalues.txt");
 			if (l.is_open())
 			{
 				l << lambdas << '\n';
@@ -570,13 +588,12 @@ int main(int argc, char* argv[])
 		prof.tic("DumpModes");
 		BLACS::COMM_ACTIVE.Barrier();
 		// Find which column of Modes has the most energy
-		int NMODES = 5; // Number of modes to print
 		MatrixXd::Index i_mode, x_mode;
 		stringstream variables_gold;
 
 		//cout << BLACS::myrank << " amplitudes " << amplitudes << endl << endl;
 
-		for (int m = 0; m < NMODES; ++m)
+		for (int m = 0; m < opt.nmodes; ++m)
 		{
 			//Find mode with highest amplitude
 			amplitudes.maxCoeff(&x_mode, &i_mode); //x_mode is always 0 since amplitudes is a 1xN matrix
@@ -657,7 +674,7 @@ int main(int argc, char* argv[])
 							stringstream filenameRE;
 							filenameRE << "mode" << setfill('0') << setw(6) << m << "." << var << ".abs";
 
-							pFile = fopen(filenameRE.str().c_str(), "wb");
+							pFile = fopen((opt.outdir + filenameRE.str()).c_str(), "wb");
 
 							gold_print_header(m, "Module", var, "hexa8", pFile);
 
@@ -668,7 +685,7 @@ int main(int argc, char* argv[])
 							stringstream filenameIM;
 							filenameIM << "mode" << setfill('0') << setw(6) << m << "." << var << ".ang";
 
-							pFile = fopen(filenameIM.str().c_str(), "wb");
+							pFile = fopen((opt.outdir + filenameIM.str()).c_str(), "wb");
 
 							gold_print_header(m, "Angle", var, "hexa8", pFile);
 
@@ -700,7 +717,7 @@ int main(int argc, char* argv[])
 		// Write the .case file
 		if (BLACS::myrank == 0)
 		{
-			std::ofstream ofs("dmd.case", std::ofstream::out);
+			std::ofstream ofs(opt.outdir + "dmd.case", std::ofstream::out);
 			ofs << "FORMAT" << endl
 				<< "type: ensight gold" << endl
 				<< "GEOMETRY" << endl
@@ -719,7 +736,7 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 
 		stringstream profile_data;
-		profile_data << argv[0] << "-" << rank << ".yml";
+		profile_data << opt.outdir << argv[0] << "-" << rank << ".yml";
 
 		//if (BLACS::myrank == 0)
 		prof.dump(profile_data.str());

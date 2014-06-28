@@ -13,6 +13,7 @@ public:
 	int stride;
 	vector<string> variables;
 	string dataset;
+	string filename;
 	string outdir;
 	bool dispResiduals;
 	peigen::EigenMethod eigSolver;
@@ -67,6 +68,9 @@ public:
 			dataset = datasetnameArg.getValue();
 
 			outdir = outdirArg.getValue();
+			if (outdir.back() != '/' && outdir.back() != '\\')
+				outdir = outdir + "/";
+
 			dispResiduals = residualsArg.getValue();
 
 			if (eigArg.getValue() == "EigSerial")
@@ -81,6 +85,8 @@ public:
 			nmodes = nmodesArg.getValue();
 
 			geofile = geoArg.getValue();
+
+			filename = filenameArg.getValue();
 		}
 		catch (TCLAP::ArgException &e)  // catch any exceptions
 		{
