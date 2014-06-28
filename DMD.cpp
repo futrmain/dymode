@@ -53,12 +53,12 @@ void set80line(string& s)
 	s.resize(80, ' ');
 	s.back() = '\n';
 }
-void gold_print_header(int mode, string part, string var, string element, FILE *pFile)
+void gold_print_header(int mode, string complex_part, string var, FILE *pFile)
 {
 	stringstream stext;
 	string text;
 
-	stext << part << " of Mode "
+	stext << complex_part << " of Mode "
 		<< setfill('0') << setw(6) << mode
 		<< " for " << var;
 	text = stext.str();
@@ -68,24 +68,59 @@ void gold_print_header(int mode, string part, string var, string element, FILE *
 	stext.clear();//clear any bits set
 	stext.str(std::string());
 
-	stext << "part";
-	text = stext.str();
-	set80line(text);
-	
-	fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
-	stext.clear();//clear any bits set
-	stext.str(std::string());
+	//stext << "part";
+	//text = stext.str();
+	//set80line(text);
+	//
+	//fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
+	//stext.clear();//clear any bits set
+	//stext.str(std::string());
 
-	const int part_number = 1;
-	fwrite(&part_number, 1, 1 * sizeof(int), pFile);
+	//const int part_number = 1;
+	//fwrite(&part_number, 1, 1 * sizeof(int), pFile);
 
-	stext << element;
-	text = stext.str();
-	set80line(text);
+	//stext << element;
+	//text = stext.str();
+	//set80line(text);
 
-	fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
+	//fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
 }
 
+void gold_print_values(MatrixXf values, geofilereader geo, FILE *pFile)
+{
+	stringstream stext;
+	string text;
+
+	int offset = 0;
+
+	for (auto it_part = geo.parts.begin(); it_part != geo.parts.end(); ++it_part)
+	{
+		stext << "part";
+		text = stext.str();
+		set80line(text);
+		
+		fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
+		stext.clear();//clear any bits set
+		stext.str(std::string());
+
+		int part_number = (*it_part).number;
+		fwrite(&part_number, 1, 1 * sizeof(int), pFile);
+
+		for (unsigned int k = 0; k < (*it_part).telements.size(); ++k)
+		{
+			stext << (*it_part).telements[k];
+			text = stext.str();
+			set80line(text);
+
+			fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
+			stext.clear();//clear any bits set
+			stext.str(std::string());
+
+			fwrite(values.data() + offset, sizeof(float), (*it_part).nelements[k], pFile);
+			offset += (*it_part).nelements[k];
+		}
+	}
+}
 
 
 int main(int argc, char* argv[])
@@ -678,6 +713,7 @@ int main(int argc, char* argv[])
 					FILE *pFile;
 
 					int offset_gold = 0;
+					MatrixXf values;
 					for (string var : opt.variables)
 					{
 						if (!(var == "null"))
@@ -687,10 +723,11 @@ int main(int argc, char* argv[])
 
 							pFile = fopen((opt.outdir + filenameRE.str()).c_str(), "wb");
 
-							gold_print_header(m, "Module", var, "hexa8", pFile);
+							gold_print_header(m, "Module", var, pFile);
 
-							fwrite(export.data() + offset_gold, sizeof(float), dreader.Np, pFile);
-
+							values = export.block(offset_gold, 0, dreader.Np, 1);
+							gold_print_values(values, georead, pFile);
+							
 							fclose(pFile);
 
 							stringstream filenameIM;
@@ -698,9 +735,10 @@ int main(int argc, char* argv[])
 
 							pFile = fopen((opt.outdir + filenameIM.str()).c_str(), "wb");
 
-							gold_print_header(m, "Angle", var, "hexa8", pFile);
+							gold_print_header(m, "Angle", var, pFile);
 
-							fwrite(export.data() + export.rows() + offset_gold, sizeof(float), dreader.Np, pFile);
+							values = export.block(offset_gold, 1, dreader.Np, 1);
+							gold_print_values(values, georead, pFile);
 
 							fclose(pFile);
 
