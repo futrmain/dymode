@@ -10,8 +10,8 @@
 #include "mpi.h"
 
 #include "boost/lexical_cast.hpp"
-#include <boost/algorithm/string.hpp>
-#include <tclap/CmdLine.h>
+
+
 
 #include <iostream>
 #include <fstream>
@@ -40,6 +40,8 @@
 #include "Vandermonde.h"
 #include "GEOinDMD.h"
 
+
+#include "options.h"
 
 using namespace std;
 using namespace Eigen;
@@ -92,38 +94,7 @@ int main(int argc, char* argv[])
 	MPI::Init();
 
 	// Deal with input parameters
-	int nfiles;
-	int nskip_step;
-	vector<string> variables;
-	string dataset;
-	try 
-	{
-		TCLAP::CmdLine inp("Dymode, copyrighted for money", ' ', "0.1a");
-
-		TCLAP::ValueArg<int> nfilesArg("n", "nfiles", "Number of files to read", false /*req*/, 1/*default*/, "uint", inp);
-		TCLAP::ValueArg<int> nskipstepArg("s", "nskipstep", "Step between snapshots to read (read every other s snapshots", false /*req*/, 1/*default*/, "uint", inp);
-		TCLAP::ValueArg<string> datasetnameArg("d", "dataset", "dataset name within the HDF file(s)", false /*req*/, "snapshots_T"/*default*/, "string", inp);
-		TCLAP::ValueArg<string> filenameArg("f", "filename", "name of the data-file(s), without trailing number (rootname)", false /*req*/, "D:/DMD/DMD/x64/NNDEB/Re350_oscillating"/*default*/, "string", inp);
-		TCLAP::ValueArg<string> variablesArg("i", "variables", "name of the input variable(s) to keep in the snapshot matrix before starting the DMD. A name must be provided for each variable present in the disk data, separated by commas. Use 'null' in order to not use a variable. For example, if the data on disk contains the variables u, v, w, p but you only want to use u and p, use --variables u,null,null,p", false /*req*/, "null"/*default*/, "string", inp);
-
-
-
-		// Parse the argv array.
-		inp.parse(argc, argv);
-
-		// Get the value parsed by each arg. 
-		// Input arguments
-		nfiles = nfilesArg.getValue();
-		nskip_step = nskipstepArg.getValue();
-
-		// parse the variables name
-		boost::split(variables, variablesArg.getValue(), boost::is_any_of(","));
-		dataset = datasetnameArg.getValue();
-	}
-	catch (TCLAP::ArgException &e)  // catch any exceptions
-	{
-		std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
-	}
+	options opt(argc, argv);
 
 	int rank, numtasks;
 	rank = MPI::COMM_WORLD.Get_rank();
@@ -171,8 +142,8 @@ int main(int argc, char* argv[])
 
 	if (BLACS::ROOT)
 	{
-		std::cout << "Input arguments: " << nfiles << ", " << nskip_step << endl << flush;
-		for (string var : variables)
+		std::cout << "Input arguments: " << opt.nfiles << ", " << opt.stride << endl << flush;
+		for (string var : opt.variables)
 		{
 			std::cout << "one variable is: " << var << endl << flush;
 		}
@@ -185,17 +156,17 @@ int main(int argc, char* argv[])
 	if (BLACS::ROOT)
 		std::cout << "Creating Reader" << endl << flush;
 
-	datasetreader dreader(nfiles, "D:/DMD/DMD/x64/NNDEB/Re350_oscillating");
+	datasetreader dreader(opt.nfiles, "D:/DMD/DMD/x64/NNDEB/Re350_oscillating");
 	if (BLACS::ROOT)
 		std::cout << "Datareader created." << endl << flush;
 
 	MPI::COMM_WORLD.Barrier(); // For printing purposes
 
-	dreader.read(dataset, variables);
+	dreader.read(opt.dataset, opt.variables);
 
 	MPI::COMM_WORLD.Barrier(); // For printing purposes
 
-	SharedMatrix<MatrixXd> snaps(dreader.createShared(6, 6, nskip_step));
+	SharedMatrix<MatrixXd> snaps(dreader.createShared(6, 6, opt.stride));
 
 	//cout << snaps << endl;
 
@@ -679,7 +650,7 @@ int main(int argc, char* argv[])
 					FILE *pFile;
 
 					int offset_gold = 0;
-					for (string var : variables)
+					for (string var : opt.variables)
 					{
 						if (!(var == "null"))
 						{
@@ -715,7 +686,7 @@ int main(int argc, char* argv[])
 			// Add all modes/variables to the list of variables
 			if (BLACS::myrank == 0)
 			{
-				for (string var : variables)
+				for (string var : opt.variables)
 				{
 					if (!(var == "null"))
 					{
