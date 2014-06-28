@@ -117,23 +117,6 @@ int main(int argc, char* argv[])
 
 	geofilereader georead(opt.geofile);
 
-	for (int r = 0; r < BLACS::numproc; ++r)
-	{
-		if (r == BLACS::myrank)
-		{
-			cout << BLACS::myrank << "Gonna print now " << endl;
-			for (gold_part part : georead.parts)
-			{
-				cout << "Part # " << part.number << endl;
-				for (unsigned int k = 0; k < part.nelements.size(); ++k)
-				{
-					cout << "Type: " << part.telements[k];
-					cout << ", # elems: " << part.nelements[k] << endl;
-				}
-			}
-		}
-		MPI::COMM_WORLD.Barrier();
-	}
 
 
 	//// Input arguments

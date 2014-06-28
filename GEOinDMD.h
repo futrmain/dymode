@@ -57,14 +57,12 @@ public:
 		input.read(line, 80);
 		input.read(line, 80);
 		input.read(line, 80);
-		cout << BLACS::myrank << " : " << line << endl;
-
+		
 		bool NodeIdsListed, ElementIdsListed;
 		// Read the node id and element id lines.
 		input.read(line, 80);
-		cout << BLACS::myrank << " : " << line << endl;
 		std::sscanf(line, " %*s %*s %s", subLine);
-		cout << BLACS::myrank << " : " << subLine << endl;
+		
 		if (strncmp(subLine, "given", 5) == 0)
 		{
 			NodeIdsListed = true;
@@ -79,9 +77,8 @@ public:
 		}
 
 		input.read(line, 80);
-		cout << BLACS::myrank << " : " << line << endl;
 		std::sscanf(line, " %*s %*s %s", subLine);
-		cout << BLACS::myrank << " : " << subLine << endl;
+		
 		if (strncmp(subLine, "given", 5) == 0)
 		{
 			ElementIdsListed = true;
@@ -96,14 +93,12 @@ public:
 		}
 
 		input.read(line, 80); // "extents" or "part"
-		cout << BLACS::myrank << " : " << line << endl;
 		if (strncmp(line, "extents", 7) == 0)
 		{
 			// Skipping the extents.
 			//input.seekg(6 * sizeof(float), ios::cur);
 			input.ignore(6 * sizeof(float)); // "part"
 			input.read(line, 80); // "part"
-			cout << BLACS::myrank << " : " << line << endl;
 		}
 
 		while (input.good() && strncmp(line, "part", 4) == 0)
@@ -114,10 +109,8 @@ public:
 			assert(curr_part.number >= 0 && curr_part.number < 65536 && "The part numer found in the geometry file is not correct.");
 
 			input.read(line, 80); // part description line
-			cout << BLACS::myrank << " : " << line << endl;
 
 			input.read(line, 80); // coordinates
-			cout << BLACS::myrank << " : " << line << endl;
 			assert(strncmp(line, "block", 5) && "Block syntax is not supported.");
 			assert(!strncmp(line, "coordinates", 11) && "Expected to find 'coordinates' in geo file");
 
@@ -125,7 +118,6 @@ public:
 			string tel;
 
 			input.read((char*)(&nnodes), sizeof(int)); // Number of nodes
-			cout << BLACS::myrank << "nnodes : " << nnodes << endl;
 
 			if (NodeIdsListed)
 			{	// Skip element IDs
@@ -134,10 +126,8 @@ public:
 			input.ignore(3 * nnodes * sizeof(float)); // Skip node coordinates
 
 			input.read(line, 80); // element type
-			cout << BLACS::myrank << " : " << line << endl;
 			std::sscanf(line, " %s", subLine);
 			auto it = np.find(subLine);
-			cout << BLACS::myrank << " : " << subLine << endl;
 			while (input.good() && it != np.end())
 			{
 				int npoints; 
@@ -147,8 +137,6 @@ public:
 
 				input.read((char*)(&nel), sizeof(int)); // Number of elements
 				curr_part.nelements.push_back(nel);
-
-				
 
 				if (ElementIdsListed)
 				{	// Skip element IDs
@@ -169,24 +157,16 @@ public:
 					{
 						total += nnp[k];
 					}
-
-
-
 					input.ignore(total * sizeof(int)); // skip elements
 					delete[] nnp;
 				}
 
 				input.read(line, 80); // element type or "part"
-				cout << BLACS::myrank << " : " << line << endl;
 				std::sscanf(line, " %s", subLine);
 				it = np.find(subLine);
 			}
-
 			parts.push_back(curr_part);
-			//input.read(line, 80); // "part"
-			cout << BLACS::myrank << " : " << line << endl;
 		}
-
 		input.close();
 	};
 };
