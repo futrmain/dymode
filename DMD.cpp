@@ -185,9 +185,12 @@ int main(int argc, char* argv[])
 		BLACS::COMM_ACTIVE.Barrier();
 		if (ROOT)
 		{
-			cout.precision(std::numeric_limits< double >::digits10);
-			cout << "singular values on process  " << rank << " are " << endl << svd.singularValues.transpose() << endl << endl << flush;
-			std::cout.copyfmt(std::ios(NULL));
+			if (opt.nsingulars > 0)
+			{
+				cout.precision(std::numeric_limits< double >::digits10);
+				cout << "First " << opt.nsingulars << " singular values: " << endl << svd.singularValues.col(0).head(opt.nsingulars).transpose() << endl << endl << flush;
+				std::cout.copyfmt(std::ios(NULL));
+			}
 		}
 
 		/*if (ROOT)

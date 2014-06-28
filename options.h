@@ -19,6 +19,7 @@ public:
 	peigen::EigenMethod eigSolver;
 	int nmodes;
 	string geofile;
+	int nsingulars;
 
 	options(int argc, char* argv[])
 	{
@@ -57,6 +58,9 @@ public:
 			// Geometry file from Ensight Gold
 			TCLAP::ValueArg<string> geoArg("g", "geo", "Geometry file from Ensight", false /*req*/, "D:/DMD/DMD/x64/NNDEB/dmd.geo"/*default*/, "string", input);
 
+			// Number of singular values to display
+			TCLAP::ValueArg<int> nsingArg("", "singulars", "If set to a positive number n, will display the first n singular values", false /*req*/, 0/*default*/, "int", input);
+
 			// ************* Parse the argv array ************* //
 			input.parse(argc, argv);
 
@@ -87,6 +91,8 @@ public:
 			geofile = geoArg.getValue();
 
 			filename = filenameArg.getValue();
+
+			nsingulars = nsingArg.getValue();
 		}
 		catch (TCLAP::ArgException &e)  // catch any exceptions
 		{
