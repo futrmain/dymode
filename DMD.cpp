@@ -540,11 +540,13 @@ int main(int argc, char* argv[])
 		{
 			prof.tic("WriteLight");
 			cout << endl << "****** Saving spectrum...";
+			cout << endl << "*************************" << endl << " SPECTRUM IS BUGGED FOR SOME REASON. INVESTIGATE!" << endl << "*************************" << endl;
 			Matrix<double, Dynamic, 2, RowMajor> spectrum(snaps.cols() - 1, 2);
-			spectrum.col(0) = lambdas.real().cwiseQuotient(lambdas.cwiseAbs()).array().acos().matrix();
+			spectrum.col(0) = lambdas.imag().binaryExpr(lambdas.real(), std::ptr_fun(atan2<double, double>));
 			spectrum.col(1) = amplitudes.transpose();
 
 			std::ofstream s(opt.outdir + "spectrum.txt");
+			//s.precision(std::numeric_limits< double >::digits10);
 			if (s.is_open())
 			{
 				s << spectrum << '\n';
@@ -554,6 +556,7 @@ int main(int argc, char* argv[])
 
 			cout << endl << "****** Saving eigenvalues..." ;
 			std::ofstream l(opt.outdir + "eigenvalues.txt");
+			//l.precision(std::numeric_limits< double >::digits10);
 			if (l.is_open())
 			{
 				l << lambdas << '\n';
