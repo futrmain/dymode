@@ -118,14 +118,20 @@ namespace peigen
 
 		//std::cout << "(" << BLACS::myrank << ") SIZE FOR hseqr , info, lwork, liwork: " << info << ", " << lwork << ", " << liwork << std::endl;
 
-		MatrixXd work((int)lwork, 1);
+		liwork = max((int)lwork, abs(liwork)); // dirty hack because doing a size query sometimes returns negative values for liwork...
+		
+		cout << BLACS::myrank << " liwork: " << liwork << endl;
+		MatrixXd work(liwork, 1);
 
-		liwork = abs(liwork); // dirty hack because doing a size query sometimes returns negative values for liwork...
+		
 		MatrixXi iwork(liwork, 1);
 
+		cout << "(" << BLACS::myrank << ") " << "Right here, Right now" << endl;
 		PBLAS::peigen_pxhseqr(job, compz, N, 1, N, T.localData(), T.desc, wr.data(), wi.data(), Z.localData(), Z.desc, work.data(), (int)lwork, iwork.data(), liwork, &info);
 		if (info != 0)
 			std::cout << "(" << BLACS::myrank << ") " << "had a problem computing Schur decomposition, return value was " << info << endl;
+		else
+			std::cout << "(" << BLACS::myrank << ") " << "Schur passed A-OK " << info << endl;
 
 		/*std::cout << "(" << BLACS::myrank << ") SIZE FOR hseqr , info after schur: " << info << std::endl;
 		std::cout << "wr " << endl << wr << endl << endl;
