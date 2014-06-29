@@ -13,13 +13,51 @@ namespace peigen
 		SharedMatrix<MatrixType> matrixU, matrixVt;
 
 		ScaSVD(SharedMatrix<MatrixType> M, bool computeU, bool computeVt);
+
+		MatrixType::RealScalar residual(SharedMatrix<MatrixType> original, bool normalized = true)
+		{
+			SharedMatrix<MatrixType> A(original);
+			SharedMatrix<MatrixType> R(matrixU);
+
+			// Multiplication by diagonal elements
+			for (int j = 0; j < R.local_matrix.cols(); ++j)
+			{
+				const int g = BLACS::indxl2g(j, R.cblock(), BLACS::grid_cols, BLACS::mycol);
+				R.local_matrix.col(j).noalias() = R.local_matrix.col(j) * singularValues(g, 0);
+			}
+
+			A.pgemm(1., R, matrixVt, -1.);
+
+			if (normalized == true)
+			{
+				// Seems to produce +Inf results
+				//A.local_matrix = A.local_matrix.array() / original.local_matrix.array();
+			}
+
+			//cout << "Residual MATRIX from SVD RESIDUAL(): " << endl << original << endl << flush;
+
+
+			// Compute local highest residual
+			return A.localBlock().cols() > 0 ? A.localBlock().cwiseAbs().maxCoeff() : -1;
+		}
+
+		MatrixType::RealScalar global_residual(SharedMatrix<MatrixType> original)
+		{
+			double r_loc = residual(original);
+			double r;
+
+			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
+
+			return r;
+		}
+
 	};
 
 	template <typename MatrixType>
 	ScaSVD<MatrixType>::ScaSVD(SharedMatrix<MatrixType> M, bool computeU, bool computeVt)
 	{
 		assert((M.rblock() == M.cblock()) && "SVD: 'M' must be distributed using a square block-cyclic distribution");
-		M.printDetails();
+		//M.printDetails();
 
 		// Note: MKL only computes the slim matrices or nothing, no full matrix
 		char getU, getVt;
@@ -43,11 +81,11 @@ namespace peigen
 		else
 			matrixVt.resize(0, 0);
 
-		double min_workspace_length;
+		double min_workspace_length = 0;
 
 		// calling pdgesvd with lwork:=-1 only computes the minimum size necessary for the array "work"
 		// the computed value is returned as the first element in "dlwork"
-		int info;
+		int info = 0;
 		PBLAS::pxgesvd(getU, getVt, M.x, M.y, M.localData(), M.i, M.j, M.descriptor(), singularValues.data(), matrixU.local_matrix.data(), matrixU.i, matrixU.j, matrixU.descriptor(), matrixVt.localData(), matrixVt.i, matrixVt.j, matrixVt.descriptor(), &min_workspace_length, /*do a space query*/-1, &info);
 
 		

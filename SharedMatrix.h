@@ -63,6 +63,134 @@ namespace peigen
 		void gather(int sink);
 		inline MPI::Datatype MPIType();
 
+		// Classic call to ScaLapack pxgemm, returns alpha*AB + beta*(*this)
+		void pgemm(double alpha, SharedMatrix<MatrixType> A, SharedMatrix<MatrixType> B, double beta)
+		{
+			// Allocate result matrix
+			int m, n, k, rb, cb;
+
+			char opA = (A.use_transpose ? 'T' : 'N');	// FIXME need to distinguish transpose and adjoint
+			char opB = (B.use_transpose ? 'T' : 'N');
+
+			rb = A.rblock();
+			cb = B.cblock();
+
+			SharedMatrix<MatrixType>& P = *this;
+
+			assert(((A.y == B.x) && (B.y == P.y ) && (A.x == P.x)) && "Multiplying matrices of different size");
+
+			// Define submatrices
+			int iA = A.i;
+			int jA = A.j;
+			int iB = B.i;
+			int jB = B.j;
+			int iP = P.i;
+			int jP = P.j;
+
+			
+			PBLAS::pxgemm(opA, opB, A.x, B.y, A.y, alpha,
+				A.localData(), iA, jA, A.descriptor(),		// matrix A
+				B.localData(), iB, jB, B.descriptor(),	// B
+				beta, P.localData(), iP, jP, P.descriptor());	// resulting temporary product
+
+		}
+
+
+		// FIXME this should account for transpose flags somehow
+		// Also loops here are ugly
+		// FIXME .block() does not work on empty matrices...
+		MatrixType localBlock()
+		{
+			int i_loc = 0;
+			while (BLACS::indxl2g(i_loc, this->rblock(), BLACS::grid_rows, BLACS::myrow) < this->i - 1)
+				++i_loc;
+
+			int j_loc = 0;
+			while (BLACS::indxl2g(j_loc, this->cblock(), BLACS::grid_cols, BLACS::mycol) < this->j - 1)
+				++j_loc;
+
+			int li_loc = this->local_matrix.rows() - i_loc;
+			while (BLACS::indxl2g(i_loc + li_loc, this->rblock(), BLACS::grid_rows, BLACS::myrow) > this->i + this->x - 1)
+				--li_loc;
+
+			int lj_loc = this->local_matrix.cols() - j_loc;
+			while (BLACS::indxl2g(j_loc + lj_loc, this->cblock(), BLACS::grid_cols, BLACS::mycol) > this->j + this->y - 1)
+				--lj_loc;
+
+			return this->local_matrix.block(i_loc, j_loc, li_loc, lj_loc);
+		}
+
+		// FIXME peigen needs a more elegant asDiagonal system to do this type of operations
+		/**
+		* Multiply (scale) the columns of the local matrix by given coefficients.
+		*/
+		SharedMatrix<MatrixType> & localColScale(MatrixType factors)
+		{
+			assert((factors.cols() == 1 && factors.rows() == local_matrix.cols()) || (factors.rows() == 1 && factors.cols() == local_matrix.cols()) && "The size of factors does not match the number of columns in local_matrix.");
+
+			local_matrix = local_matrix * factors.asDiagonal();
+
+			return *this;
+		}
+
+		// FIXME peigen needs a more elegant asDiagonal system to do this type of operations
+		/**
+		* Multiply (scale) the columns of the whole matrix when all the coefficients are known by each process.
+		*/
+		SharedMatrix<MatrixType> & ColScale(MatrixType factors)
+		{
+			assert((factors.cols() == 1 && factors.rows() == ncols) || (factors.rows() == 1 && factors.cols() == ncols) && "The size of factors does not match the number of columns in the global matrix.");
+
+			// Fetch the right coefficient for each column and multiply
+			for (int j = 0; j < local_matrix.cols(); ++j)
+			{
+				const int g = BLACS::indxl2g(j, evectors.cblock(), BLACS::grid_cols, BLACS::mycol);
+				local_matrix.col(j).noalias() = local_matrix.col(j) * factors(g);
+			}
+
+			return *this;
+		}
+
+		// FIXME peigen needs a more elegant asDiagonal system to do this type of operations
+		/**
+		* Multiply (scale) the columns of the whole matrix when the coefficients are distributed.
+		*/
+		SharedMatrix<MatrixType> & ColScale(SharedMatrix<MatrixType> factors)
+		{
+			assert((factors.cols() == 1 && factors.rows() == ncols) || (factors.rows() == 1 && factors.cols() == ncols) && "The size of factors does not match the number of columns in the global matrix.");
+
+			// Make sure factors is a vertical vector
+			if (factors.cols() > 1)
+				factors.transpose();
+
+
+			// Step 1: Form D := diag(factors)
+			// Replicate factors horizontally
+			SharedMatrix<MatrixType> D = factors * SharedMatrix<MatrixType>(1, ncols, 'o', 1, ncblock);
+
+			// Nullify non-diagonal coefficients
+			for (int i = 0; i < D.local_matrix.rows(); ++i)
+			{
+				const int gi = BLACS::indxl2g(i, D.rblock(), BLACS::grid_rows, BLACS::myrow);
+				for (int j = 0; j < D.local_matrix.cols(); ++j)
+				{
+					const int gj = BLACS::indxl2g(j, D.cblock(), BLACS::grid_cols, BLACS::mycol);
+
+					if (gi != gj)
+					{
+						D.local_matrix(i, j) = 0;
+					}
+				}
+			}
+
+			// Step 2: Multiply *this by D
+			*this = *this * D;
+			
+			//std::cout << "DIAGONAL MATRIX ***~~~****~~~****~~" << std::endl << *this << std::endl << std::endl;
+			return *this;
+		}
+
+
 
 		// Operators
 		SharedMatrix<MatrixType> &operator=(SharedMatrix<MatrixType> &other)
@@ -94,8 +222,8 @@ namespace peigen
 			ncblock = P.ncblock;
 			local_matrix = P.local_matrix;
 			std::copy(P.desc, P.desc + 9, desc);
-			prod.A.clear();
-			prod.B.clear();
+			//prod.A.clear();
+			//prod.B.clear();
 			return *this;
 		}
 
@@ -280,8 +408,8 @@ namespace peigen
 		ncblock = P.ncblock;
 		local_matrix = P.local_matrix;
 		std::copy(P.desc, P.desc + 9, desc);
-		prod.A.clear();
-		prod.B.clear();
+		//prod.A.clear();
+		//prod.B.clear();
 	}
 
 
@@ -379,7 +507,7 @@ namespace peigen
 
 
 	template <typename MatrixType>
-	Sharedprod<MatrixType> operator*(SharedMatrix<MatrixType> &a, SharedMatrix<MatrixType> &b)
+	Sharedprod<MatrixType> operator*(SharedMatrix<MatrixType> a, SharedMatrix<MatrixType> b)
 	{return Sharedprod<MatrixType>(a, b);}
 
 	template <typename MatrixType>

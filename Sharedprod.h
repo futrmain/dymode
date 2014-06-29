@@ -14,10 +14,10 @@ namespace peigen
 	public:
 		typedef typename MatrixType::Scalar Scalar;
 		Scalar alpha;
-		SharedMatrix<MatrixType> &A;
-		SharedMatrix<MatrixType> &B;
+		SharedMatrix<MatrixType> A;
+		SharedMatrix<MatrixType> B;
 		
-		Sharedprod<MatrixType>(SharedMatrix<MatrixType> &a, SharedMatrix<MatrixType> &b) : A(a), B(b), alpha(1) {}
+		Sharedprod<MatrixType>(SharedMatrix<MatrixType> a, SharedMatrix<MatrixType> b) : A(a), B(b), alpha(1) {}
 		Sharedprod<MatrixType>(Scalar x, Sharedprod<MatrixType> &P) : A(P.A), B(P.B), alpha(x*P.alpha) {}
 		Sharedprod<MatrixType>(Sharedprod<MatrixType> &P, SharedMatrix<MatrixType> &b) : A(P.eval()), B(b), alpha(1) {std::cout << A;}
 
@@ -36,7 +36,8 @@ namespace peigen
 		rb = A.rblock();
 		cb = B.cblock();
 
-		SharedMatrix<MatrixType> P(A.x, B.y, rb, cb);
+		//SharedMatrix<MatrixType> P(A.x, B.y, rb, cb);
+		SharedMatrix<MatrixType> P = SharedMatrix<MatrixType>(A.x, B.y, 'z', rb, cb);
 
 		//A.printDetails();
 
