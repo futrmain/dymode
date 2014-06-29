@@ -132,14 +132,14 @@ namespace peigen
 							work.data(), work.rows(), xspace.data(), xspace.rows(), &info);
 
 
-						if (BLACS::myrank == 0)
-							std::cout << "lwork is " << work(0, 0) << ", lrwork is: " << xspace(0,0) << ", info is: " << info << std::endl;
+						/*if (BLACS::myrank == 0)
+							std::cout << "lwork is " << work(0, 0) << ", lrwork is: " << xspace(0,0) << ", info is: " << info << std::endl;*/
 
 						if (BLACS::myrank == 0)
-							std::cout << "rcond is " << rcond << ", ferr is: " << ferr(0, 0) << ", berr is: " << berr(0,0) << std::endl;
+							std::cout << "rcond = " << rcond << endl << "ferr = " << ferr(0, 0) << endl << "berr = " << berr(0,0) << std::endl;
 
 						if (BLACS::myrank == 0)
-							std::cout << "Solved a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesvx. Return code was: " << info << std::endl;
+							std::cout << "Solved a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesvx." << endl << "Return code was: " << info << endl << std::endl;
 
 						solution = x;
 
@@ -165,7 +165,7 @@ namespace peigen
 						   ipiv, solution.localData(), solution.i, solution.j, solution.descriptor(), &info);
 
 					   if (BLACS::myrank == 0)
-						   std::cout << "Solved a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs. Return code was: " << info << std::endl;
+						   std::cout << "Solved a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesvx." << endl << "Return code was: " << info << endl << std::endl;
 
 		//A.printDetails();
 		//B.printDetails();
