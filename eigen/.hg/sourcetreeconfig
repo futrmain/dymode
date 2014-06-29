@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<RepositoryCustomSettings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <LastUsedView>Log</LastUsedView>
+  <AutoRefresh>true</AutoRefresh>
+  <LogBranchFilterIndex>0</LogBranchFilterIndex>
+  <SidebarExpandedItems>
+    <string>File Status</string>
+    <string>Branches</string>
+    <string>Remotes</string>
+    <string>File Status</string>
+    <string>Branches</string>
+    <string>Branches/3.2</string>
+    <string>Branches/default</string>
+    <string>Remotes</string>
+  </SidebarExpandedItems>
+  <SidebarWidth>140</SidebarWidth>
+  <AutoRefreshRemotes>true</AutoRefreshRemotes>
+  <LastCheckedRemotes>2014-06-29T23:42:50.2422939+02:00</LastCheckedRemotes>
+  <RemoteProjectLinks>
+    <RepositoryRemoteProjectLink>
+      <Type>Bitbucket</Type>
+      <BaseUrl>https://www.bitbucket.org</BaseUrl>
+      <RemoteName>default</RemoteName>
+      <Username>romain.futrzynski@gmail.com</Username>
+      <Identifier>eigen/eigen</Identifier>
+    </RepositoryRemoteProjectLink>
+  </RemoteProjectLinks>
+  <CommitTextLinks />
+  <SubtreeLinks />
+  <IncomingSavedCount>40</IncomingSavedCount>
+  <OutgoingSavedCount>2</OutgoingSavedCount>
+</RepositoryCustomSettings>
