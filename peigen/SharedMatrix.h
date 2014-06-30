@@ -1,16 +1,12 @@
-#include <Eigen/Dense>
-#include "BLACS.h"
-#include "PBLAS.h"
-#include "Sharedprod.h"
-#include <typeinfo>
-
-
 #ifndef PEIGEN_SHARED_MATRIX_H
 #define PEIGEN_SHARED_MATRIX_H
 
+#include <typeinfo>
+
 namespace peigen
 {
-	using namespace Eigen;	
+	template <typename MatrixType>
+	class Sharedprod;
 
 	template <typename MatrixType>
 	class SharedMatrix
