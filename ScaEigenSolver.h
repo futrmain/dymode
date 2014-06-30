@@ -1,9 +1,6 @@
 #ifndef PEIGEN_SCAEIGENSOLVER_H
 #define PEIGEN_SCAEIGENSOLVER_H
 
-#include "ScaHessenberg.h"
-#include "ScaSchur.h"
-
 namespace peigen
 {
 	enum EigenMethod { EigSerial = 0, EigHess, EigSchur };
