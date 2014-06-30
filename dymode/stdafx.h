@@ -12,34 +12,31 @@
 #ifdef USE_PRECOMPILED_HEADER
 #include "targetver.h"
 
+// External dependencies
 #include "mpi.h"
-
+#include "mkl.h"
 
 #include <iostream>
 #include <fstream>
 
-#include <Eigen/Dense>
-#include "PBLAS.h"
-#include "BLACS.h"
-
-
-
-
-#include "boost/lexical_cast.hpp"
+// Internal dependencies
+#include "peigen.h"
 
 #define USE_PROFILER
 #define USE_BOOST_CHRONO
 #include "tic-toc-profiler.hpp"
 
-#include "H5inDMD.h"
+using namespace std;
+using namespace Eigen;
+using namespace peigen;
 
-#include "mkl.h"
-//#include <stdio.h>
-//#include <tchar.h>
-
-#include "Vandermonde.h"
-
+// Dymode helper functions
 #include "ColumnSquaredNorm.h"
+#include "H5inDMD.h"
+#include "GEOinDMD.h"
+#include "options.h"
+
+using namespace phdfp;
 
 #endif
 

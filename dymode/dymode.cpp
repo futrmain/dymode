@@ -4,49 +4,35 @@
 
 #include "stdafx.h"
 
-
-
 #ifndef USE_PRECOMPILED_HEADER
+
+// External dependencies
 #include "mpi.h"
-
-#include "boost/lexical_cast.hpp"
-
-
+#include "mkl.h"
 
 #include <iostream>
 #include <fstream>
 
-#include <Eigen/Dense>
-#include "PBLAS.h"
-#include "BLACS.h"
-
-#include "H5inDMD.h"
+// Internal dependencies
+#include "peigen.h"
 
 #define USE_PROFILER
 #define USE_BOOST_CHRONO
 #include "tic-toc-profiler.hpp"
 
-#include "ColumnSquaredNorm.h"
-#endif
-
-
-
-#include "SharedMatrix.h"
-#include "ScaSVD.h"
-
-#include "ScaSolve.h"
-
-#include "ScaEigenSolver.h"
-#include "Vandermonde.h"
-#include "GEOinDMD.h"
-
-
-#include "options.h"
-
 using namespace std;
 using namespace Eigen;
 using namespace peigen;
+
+// Dymode helper functions
+#include "ColumnSquaredNorm.h"
+#include "H5inDMD.h"
+#include "GEOinDMD.h"
+#include "options.h"
+
 using namespace phdfp;
+
+#endif
 
 void set80line(string& s)
 {
