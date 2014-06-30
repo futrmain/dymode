@@ -3,8 +3,6 @@
 
 namespace peigen
 {
-	using namespace Eigen;
-
 	template <typename MatrixType>
 	class ScaSVD
 	{
