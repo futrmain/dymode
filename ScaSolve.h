@@ -5,7 +5,7 @@ namespace peigen
 {
 	enum LinSolverName_t { Eigen = 0, pxgesv, pxgesvx, EigenSVD };
 
-	template< typename MatrixType, bool isComplex = (is_same<MatrixType::Scalar, complex<float>>::value || is_same<MatrixType::Scalar, complex<double>>::value) >
+	template< typename MatrixType, bool isComplex = (std::is_same<MatrixType::Scalar, complex<float>>::value || is_same<MatrixType::Scalar, complex<double>>::value) >
 	class xwork 
 	{
 	private:

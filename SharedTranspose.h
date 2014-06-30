@@ -1,9 +1,6 @@
 #ifndef PEIGEN_SHARED_TRANSP_H
 #define PEIGEN_SHARED_TRANSP_H
 
-template <typename MatrixType>
-class SharedMatrix;
-
 namespace peigen
 {
 	template <typename SharedType>
@@ -22,16 +19,6 @@ namespace peigen
 		inline int cblock() const { return matrix_t.rblock(); }
 
 		SharedType matrix_t;
-	};
-
-
-	template<typename MatrixType>
-	struct traits<SharedTranspose<MatrixType> >
-	{
-		enum 
-		{
-			transpose = true,
-		};
 	};
 
 }	// end namespace peigen
