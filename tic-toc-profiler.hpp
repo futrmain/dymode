@@ -37,6 +37,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 #ifdef USE_BOOST_CHRONO
+
 #define BOOST_CHRONO_HEADER_ONLY
 #define BOOST_ERROR_CODE_HEADER_ONLY
 #include <boost/chrono.hpp>
@@ -46,6 +47,7 @@ namespace thischrono = boost::chrono;
 
 #include <chrono>
 namespace thischrono = std::chrono;
+
 #endif
 
 using namespace std;
