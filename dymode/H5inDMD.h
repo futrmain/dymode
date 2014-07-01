@@ -240,10 +240,10 @@ namespace phdfp
 
 		//// Step 3: Read
 		/*Note: From here the dimensions are switched to account for the fact that data is stored transposed on disk*/
-		size_t dims[2];
+		hsize_t dims[2];
 		dims[1] = input_data.rows();
 		dims[0] = input_data.cols();
-		hsize_t virtual_filespace = H5Screate_simple(/*rank*/ 2, dims, NULL);
+		hid_t virtual_filespace = H5Screate_simple(/*rank*/ 2, dims, NULL);
 
 		hyperslab2D sel;
 		sel.offset[0] = 0;

@@ -3,10 +3,10 @@
 
 
 template <typename MatrixType>
-Eigen::Matrix<MatrixType::RealScalar, Eigen::Dynamic, Eigen::Dynamic> ColumnSquaredNorm(peigen::SharedMatrix<MatrixType> A)
+Eigen::Matrix<typename MatrixType::RealScalar, Eigen::Dynamic, Eigen::Dynamic> ColumnSquaredNorm(peigen::SharedMatrix<MatrixType> A)
 {
-	peigen::SharedMatrix<Eigen::Matrix<MatrixType::RealScalar, Eigen::Dynamic, Eigen::Dynamic>> SNorms(1, A.cols(), 1, A.cblock());
-	Eigen::Matrix<MatrixType::RealScalar, Eigen::Dynamic, Eigen::Dynamic> local_snorm;
+	peigen::SharedMatrix<Eigen::Matrix<typename MatrixType::RealScalar, Eigen::Dynamic, Eigen::Dynamic>> SNorms(1, A.cols(), 1, A.cblock());
+	Eigen::Matrix<typename MatrixType::RealScalar, Eigen::Dynamic, Eigen::Dynamic> local_snorm;
 	if (A.local_matrix.cols() > 0)
 	{
 		local_snorm = A.local_matrix.colwise().squaredNorm();
