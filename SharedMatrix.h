@@ -201,7 +201,7 @@ namespace peigen
 			ncblock = other.ncblock;
 			local_matrix = other.local_matrix;
 			std::copy(other.desc, other.desc + 9, desc);
-			other.clear();
+			//other.clear();
 			return *this;
 		}
 

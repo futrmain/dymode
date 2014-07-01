@@ -22,7 +22,7 @@ namespace peigen
 			return MPI::DOUBLE_COMPLEX;
 		}
 
-		ScaEigenSolver<MatrixType>(const SharedMatrix<MatrixType>& A, const bool computeEigenVectors = true, const EigenMethod method = EigSchur);
+		ScaEigenSolver(const SharedMatrix<MatrixType>& A, const bool computeEigenVectors = true, const EigenMethod method = EigSchur);
 
 		inline SharedMatrix<Matrix<complex<RealScalar>, Dynamic, Dynamic>> eigenVectors() { return evectors; }
 		inline Matrix<complex<RealScalar>, Dynamic, Dynamic> eigenValues() { return evalues; }
@@ -57,7 +57,7 @@ namespace peigen
 	};
 
 	template <typename MatrixType>
-	ScaEigenSolver<MatrixType>::ScaEigenSolver(const SharedMatrix<MatrixType>& A, const bool computeEigenVectors = true, const EigenMethod method = EigSchur) : S(A), method_(method), evalues(Matrix<complex<RealScalar>, Dynamic, Dynamic>(min(A.rows(), A.cols()), 1))
+	ScaEigenSolver<MatrixType>::ScaEigenSolver(const SharedMatrix<MatrixType>& A, const bool computeEigenVectors, const EigenMethod method) : S(A), method_(method), evalues(Matrix<complex<RealScalar>, Dynamic, Dynamic>(min(A.rows(), A.cols()), 1))
 	{
 		assert(A.rows() == A.cols() && "CALLING EIGEN SOLVER ON NON SQUARE MATRIX");
 
