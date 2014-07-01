@@ -72,7 +72,7 @@ namespace peigen
 		MPI::Intracomm COMM_ACTIVE;
 
 		// Constants that can be passed to stupid FORTRAN by reference
-		extern int izero = 0;
+		int izero;
 		int ione = 1;
 		double dzero = 0.;
 		double done = 1;

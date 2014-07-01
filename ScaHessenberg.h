@@ -7,10 +7,8 @@ namespace peigen
 	template <typename MatrixType>
 	class ScaHessenberg
 	{
-	protected:
-		typedef typename MatrixType::Scalar Scalar;
-
 	private:
+		typedef typename MatrixType::Scalar Scalar;
 		void computeQ();
 		void computeH();
 
@@ -21,12 +19,12 @@ namespace peigen
 		MatrixType tau;
 		ScaHessenberg<MatrixType>(const SharedMatrix<MatrixType>& A, const bool computeMatrixQ = true);
 
-		SharedMatrix<MatrixType>&  matrixH() const { return Hessenberg; }
-		SharedMatrix<MatrixType>&  matrixQ() const { return Q; }
+		SharedMatrix<MatrixType>&  matrixH() { return Hessenberg; }
+		SharedMatrix<MatrixType>&  matrixQ() { return Q; }
 	};
 
 	template <typename MatrixType>
-	ScaHessenberg<MatrixType>::ScaHessenberg(const SharedMatrix<MatrixType>& A, const bool computeMatrixQ = true) : Hessenberg(A), tau(MatrixType(A.rows(), 1))
+	ScaHessenberg<MatrixType>::ScaHessenberg(const SharedMatrix<MatrixType>& A, const bool computeMatrixQ) : Hessenberg(A), tau(MatrixType(A.rows(), 1))
 	{
 		assert(A.rows() == A.cols() && "CALLING EIGEN SOLVER ON NON SQUARE MATRIX");// FIXME Maybe this is valid for just Hessenberg?
 
