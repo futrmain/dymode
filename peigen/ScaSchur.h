@@ -89,8 +89,8 @@ namespace peigen
 
 		ScaSchur<MatrixType>(const SharedMatrix<MatrixType>& H, const SharedMatrix<MatrixType>& Q, bool computeSchur = true, bool compz = true);
 
-		SharedMatrix<MatrixType>& matrixT() const { return T; }
-		SharedMatrix<MatrixType>& matrixZ() const { return Z; }
+		SharedMatrix<MatrixType>& matrixT() { return T; }
+		SharedMatrix<MatrixType>& matrixZ() { return Z; }
 	};
 
 	template <typename MatrixType>

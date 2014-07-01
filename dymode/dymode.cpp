@@ -94,7 +94,7 @@ void gold_print_values(MatrixXf values, geofilereader geo, FILE *pFile)
 
 int main(int argc, char* argv[])
 {
-	int mkl_res = mkl_cbwr_set(MKL_CBWR_COMPATIBLE);
+	//int mkl_res = mkl_cbwr_set(MKL_CBWR_COMPATIBLE);
 	MPI::Init();
 
 	// Deal with input parameters
@@ -109,8 +109,8 @@ int main(int argc, char* argv[])
 
 	// Create the BLACS grid
 	BLACS::init(numtasks);
-	if (BLACS::ROOT)
-		std::cout << "BLACS Initialized. MKL says " << mkl_res << endl << flush;
+	//if (BLACS::ROOT)
+		//std::cout << "BLACS Initialized. MKL says " << mkl_res << endl << flush;
 	//BLACS::printGrid();
 
 	MPI::COMM_WORLD.Barrier(); // For printing purposes
@@ -593,7 +593,7 @@ int main(int argc, char* argv[])
 			if (BLACS::mycol == BLACS::indxg2p(i_mode, Modes.cblock(), BLACS::grid_cols))
 			{
 				int i_loc = BLACS::indxg2l(i_mode, Modes.cblock(), BLACS::grid_cols);
-				MatrixXf export;
+				MatrixXf exportdata;
 
 
 				// Gather the global column on row 0
@@ -601,7 +601,7 @@ int main(int argc, char* argv[])
 				Matrix<Matrix<float, Dynamic, Dynamic>, Dynamic, 1> RecvBuffer;
 				if (BLACS::myrow == 0)
 				{
-					export.resize(Modes.rows(), 2);
+					exportdata.resize(Modes.rows(), 2);
 					Irecv_requests.resize(BLACS::grid_rows, 1);
 					RecvBuffer.resize(BLACS::grid_rows, 1);
 
@@ -625,13 +625,13 @@ int main(int argc, char* argv[])
 					MPI::Request::Waitall(BLACS::grid_rows, Irecv_requests.data());
 
 					// Combine the buffers
-					for (int rb = 0; rb < ceil((double)export.rows() / Modes.rblock()); rb++)
+					for (int rb = 0; rb < ceil((double)exportdata.rows() / Modes.rblock()); rb++)
 					{
 						int roffset = Modes.rblock() * floor(rb / BLACS::grid_rows);
-						int _nrows = min(Modes.rblock(), export.rows() - rb*Modes.rblock());
+						int _nrows = min(Modes.rblock(), (int)(exportdata.rows() - rb*Modes.rblock()));
 						int pr_owner = rb % BLACS::grid_rows;
-						export.block(rb*Modes.rblock(), 0, _nrows, 1) = RecvBuffer(pr_owner, 0).block(roffset, 0, _nrows, 1);
-						export.block(rb*Modes.rblock(), 1, _nrows, 1) = RecvBuffer(pr_owner, 0).block(roffset, 1, _nrows, 1);
+						exportdata.block(rb*Modes.rblock(), 0, _nrows, 1) = RecvBuffer(pr_owner, 0).block(roffset, 0, _nrows, 1);
+						exportdata.block(rb*Modes.rblock(), 1, _nrows, 1) = RecvBuffer(pr_owner, 0).block(roffset, 1, _nrows, 1);
 					}
 				}
 
@@ -654,7 +654,7 @@ int main(int argc, char* argv[])
 
 							gold_print_header(m, "Module", var, pFile);
 
-							values = export.block(offset_gold, 0, dreader.Np, 1);
+							values = exportdata.block(offset_gold, 0, dreader.Np, 1);
 							gold_print_values(values, georead, pFile);
 							
 							fclose(pFile);
@@ -666,7 +666,7 @@ int main(int argc, char* argv[])
 
 							gold_print_header(m, "Angle", var, pFile);
 
-							values = export.block(offset_gold, 1, dreader.Np, 1);
+							values = exportdata.block(offset_gold, 1, dreader.Np, 1);
 							gold_print_values(values, georead, pFile);
 
 							fclose(pFile);

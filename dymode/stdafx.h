@@ -10,11 +10,11 @@
 #define USE_PRECOMPILED_HEADER
 
 #ifdef USE_PRECOMPILED_HEADER
-#include "targetver.h"
+//#include "targetver.h"
 
 // External dependencies
 #include "mpi.h"
-#include "mkl.h"
+//#include "mkl.h"
 
 #include <iostream>
 #include <fstream>

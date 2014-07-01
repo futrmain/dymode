@@ -191,11 +191,11 @@ public:
  */
 class NoProfiler
 {
-	eventlist *current = nullptr;
-	string out_file = "";
+	eventlist *current;
+	string out_file;
 
 public:
-	const double factor = 0;
+	const double factor;
 	eventlist root;
 	NoProfiler() {};
 	NoProfiler(const string&) {};
