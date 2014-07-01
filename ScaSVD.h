@@ -6,13 +6,15 @@ namespace peigen
 	template <typename MatrixType>
 	class ScaSVD
 	{
+	private:
+	  typedef typename MatrixType::RealScalar RealScalar;
 	public:
 		MatrixType singularValues;
 		SharedMatrix<MatrixType> matrixU, matrixVt;
 
 		ScaSVD(SharedMatrix<MatrixType> M, bool computeU, bool computeVt);
 
-		MatrixType::RealScalar residual(SharedMatrix<MatrixType> original, bool normalized = true)
+		RealScalar residual(SharedMatrix<MatrixType> original, bool normalized = true)
 		{
 			SharedMatrix<MatrixType> A(original);
 			SharedMatrix<MatrixType> R(matrixU);
@@ -39,12 +41,12 @@ namespace peigen
 			return A.localBlock().cols() > 0 ? A.localBlock().cwiseAbs().maxCoeff() : -1;
 		}
 
-		MatrixType::RealScalar global_residual(SharedMatrix<MatrixType> original)
+		RealScalar global_residual(SharedMatrix<MatrixType> original)
 		{
 			double r_loc = residual(original);
 			double r;
 
-			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
+			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX);
 
 			return r;
 		}
