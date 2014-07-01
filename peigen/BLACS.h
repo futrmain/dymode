@@ -26,7 +26,7 @@ namespace peigen
 			void Cdgerv2d(int, int, int, double*, int, int, int);
 			void Cdgesd2d(int, int, int, double*, int, int, int);
 			int Cblacs_pnum(int ctxt, int prow, int pcol);
-			inline int numroc_(int* s, int* sblock, int* proc, int* origin, int* nproc);
+			int numroc_(int* s, int* sblock, int* proc, int* origin, int* nproc);
 			inline int peigen_numroc(int s, int sblock, int proc, int origin, int nproc)
 			{ // Overload to be able to pass by value // FIXME there probably already is a C-style numroc in MKL
 				return numroc_(&s, &sblock, &proc, &origin, &nproc);
@@ -72,7 +72,7 @@ namespace peigen
 		MPI::Intracomm COMM_ACTIVE;
 
 		// Constants that can be passed to stupid FORTRAN by reference
-		extern int izero = 0;
+		int izero;
 		int ione = 1;
 		double dzero = 0.;
 		double done = 1;

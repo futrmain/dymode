@@ -1,11 +1,13 @@
 #ifndef PEIGEN_SCASOLVE_H
 #define PEIGEN_SCASOLVE_H
 
+#include <type_traits>
+
 namespace peigen
 {
 	enum LinSolverName_t { Eigen = 0, pxgesv, pxgesvx, EigenSVD };
 
-	template< typename MatrixType, bool isComplex = (std::is_same<MatrixType::Scalar, complex<float>>::value || is_same<MatrixType::Scalar, complex<double>>::value) >
+	template< typename MatrixType, bool isComplex = (is_same<typename MatrixType::Scalar, complex<float>>::value || is_same<typename MatrixType::Scalar, complex<double>>::value) >
 	class xwork 
 	{
 	private:
@@ -23,8 +25,8 @@ namespace peigen
 	class xwork<MatrixType, true >
 	{
 	private:
-		typedef MatrixType::RealScalar RealScalar;
-		typedef MatrixType::Scalar Scalar;
+		typedef typename MatrixType::RealScalar RealScalar;
+		typedef typename MatrixType::Scalar Scalar;
 		Matrix<RealScalar, Dynamic, 1> work;
 	public:
 		Scalar* data() { return work.data(); }
@@ -37,6 +39,8 @@ namespace peigen
 	template <typename MatrixType>
 	class ScaSolve
 	{
+	private:
+	  typedef typename MatrixType::RealScalar RealScalar;
 	public:
 		LinSolverName_t method;
 		SharedMatrix<MatrixType> solution, matrixLU;
@@ -49,7 +53,7 @@ namespace peigen
 			return *this;
 		}
 
-		MatrixType::RealScalar residual(SharedMatrix<MatrixType> A, SharedMatrix<MatrixType> B)
+		RealScalar residual(SharedMatrix<MatrixType> A, SharedMatrix<MatrixType> B)
 		{
 			SharedMatrix<MatrixType> R(B);
 			R.pgemm(1., A, solution, -1.);
@@ -58,12 +62,12 @@ namespace peigen
 			return R.local_matrix.cols() > 0 ? R.local_matrix.cwiseAbs().maxCoeff() : -1;
 		}
 
-		MatrixType::RealScalar global_residual(SharedMatrix<MatrixType> original, SharedMatrix<MatrixType> rhs)
+		RealScalar global_residual(SharedMatrix<MatrixType> original, SharedMatrix<MatrixType> rhs)
 		{
 			double r_loc = residual(original, rhs);
 			double r;
 
-			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
+			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX);
 
 			return r;
 		}
@@ -99,12 +103,12 @@ namespace peigen
 
 						SharedMatrix<MatrixType> Af(A);
 						SharedMatrix<MatrixType> x(B);
-						Matrix<MatrixType::RealScalar, Dynamic, 1> r(matrixLU.local_matrix.rows(), 1);
-						Matrix<MatrixType::RealScalar, Dynamic, 1> c(matrixLU.local_matrix.cols(), 1);
+						Matrix<RealScalar, Dynamic, 1> r(matrixLU.local_matrix.rows(), 1);
+						Matrix<RealScalar, Dynamic, 1> c(matrixLU.local_matrix.cols(), 1);
 
-						MatrixType::RealScalar rcond;
-						Matrix<MatrixType::RealScalar, Dynamic, 1> ferr(solution.local_matrix.cols(), 1);
-						Matrix<MatrixType::RealScalar, Dynamic, 1> berr(solution.local_matrix.cols(), 1);
+						RealScalar rcond;
+						Matrix<RealScalar, Dynamic, 1> ferr(solution.local_matrix.cols(), 1);
+						Matrix<RealScalar, Dynamic, 1> berr(solution.local_matrix.cols(), 1);
 
 						MatrixType work(1, 1);
 						xwork<MatrixType> xspace;

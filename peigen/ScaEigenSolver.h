@@ -9,26 +9,28 @@ namespace peigen
 	class ScaEigenSolver
 	{
 	private:
+	  typedef typename MatrixType::RealScalar RealScalar;
 		SharedMatrix<MatrixType> S;
-		SharedMatrix<Matrix<complex<MatrixType::RealScalar>, Dynamic, Dynamic>> evectors;		
-		Matrix<complex<MatrixType::RealScalar>, Dynamic, 1> evalues;
+		SharedMatrix<Matrix<complex<RealScalar>, Dynamic, Dynamic>> evectors;		
+		Matrix<complex<RealScalar>, Dynamic, 1> evalues;
 		EigenMethod method_;
 
 	public:
-		inline MPI::Datatype ScaEigenSolver<MatrixType>::MPIType()
+		
+		inline MPI::Datatype MPIType()
 		{
 			return MPI::DOUBLE_COMPLEX;
 		}
 
-		ScaEigenSolver<MatrixType>(const SharedMatrix<MatrixType>& A, const bool computeEigenVectors = true, const EigenMethod method = EigSchur);
+		ScaEigenSolver(const SharedMatrix<MatrixType>& A, const bool computeEigenVectors = true, const EigenMethod method = EigSchur);
 
-		inline SharedMatrix<Matrix<complex<MatrixType::RealScalar>, Dynamic, Dynamic>> eigenVectors() { return evectors; }
-		inline Matrix<complex<MatrixType::RealScalar>, Dynamic, Dynamic> eigenValues() { return evalues; }
-		inline setMethod(const EigenMethod& method) { method_ = method };
+		inline SharedMatrix<Matrix<complex<RealScalar>, Dynamic, Dynamic>> eigenVectors() { return evectors; }
+		inline Matrix<complex<RealScalar>, Dynamic, Dynamic> eigenValues() { return evalues; }
+		inline void setMethod(const EigenMethod& method) { method_ = method; };
 
-		MatrixType::RealScalar residual(SharedMatrix<MatrixType> original)
+		RealScalar residual(SharedMatrix<MatrixType> original)
 		{
-			SharedMatrix<Matrix<complex<MatrixType::RealScalar>, Dynamic, Dynamic>> R(evectors);
+			SharedMatrix<Matrix<complex<RealScalar>, Dynamic, Dynamic>> R(evectors);
 
 			// Multiplication by diagonal elements
 			for (int j = 0; j < R.local_matrix.cols(); ++j)
@@ -36,18 +38,18 @@ namespace peigen
 				const int g = BLACS::indxl2g(j, evectors.cblock(), BLACS::grid_cols, BLACS::mycol);
 				R.local_matrix.col(j).noalias() = R.local_matrix.col(j) * evalues(g);
 			}
-			R.pgemm(1., original.cast<complex<double>>(), evectors, -1.);
+			R.pgemm(1.0, original.template cast<complex<double> >(), evectors, -1.0);
 
 			// Compute local highest residual
 			return R.local_matrix.cols() > 0 ? R.local_matrix.cwiseAbs().maxCoeff() : -1;
 		}
 
-		MatrixType::RealScalar global_residual(SharedMatrix<MatrixType> original)
+		RealScalar global_residual(SharedMatrix<MatrixType> original)
 		{
 			double r_loc = residual(original);
 			double r;
 
-			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
+			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX);
 
 			return r;
 		}
@@ -55,7 +57,7 @@ namespace peigen
 	};
 
 	template <typename MatrixType>
-	ScaEigenSolver<MatrixType>::ScaEigenSolver(const SharedMatrix<MatrixType>& A, const bool computeEigenVectors = true, const EigenMethod method = EigSchur) : S(A), method_(method), evalues(Matrix<complex<MatrixType::RealScalar>, Dynamic, Dynamic>(min(A.rows(), A.cols()), 1))
+	ScaEigenSolver<MatrixType>::ScaEigenSolver(const SharedMatrix<MatrixType>& A, const bool computeEigenVectors, const EigenMethod method) : S(A), method_(method), evalues(Matrix<complex<RealScalar>, Dynamic, Dynamic>(min(A.rows(), A.cols()), 1))
 	{
 		assert(A.rows() == A.cols() && "CALLING EIGEN SOLVER ON NON SQUARE MATRIX");
 

@@ -45,7 +45,7 @@ public:
 #ifdef _WIN32
 		ifstream input = ifstream(geofile.c_str(), ios::in | ios::binary);
 #else
-		ifstream input = ifstream(geofile.c_str(), ios::in);
+		ifstream input(geofile.c_str(), ios::in);
 #endif
 
 		int lineRead;

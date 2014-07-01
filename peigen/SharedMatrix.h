@@ -11,15 +11,15 @@ namespace peigen
 	template <typename MatrixType>
 	class SharedMatrix
 	{
-	protected:
+	private:
 		typedef typename MatrixType::Scalar Scalar;
 		typedef MatrixType EigenMType;
 
-		int nrows, ncols;
+		int nrows, ncols;		
 		
-		int desc[9];
 
 	public:
+		int desc[9];
 		MatrixType local_matrix;
 		MatrixType global_matrix;
 
@@ -140,7 +140,7 @@ namespace peigen
 			// Fetch the right coefficient for each column and multiply
 			for (int j = 0; j < local_matrix.cols(); ++j)
 			{
-				const int g = BLACS::indxl2g(j, evectors.cblock(), BLACS::grid_cols, BLACS::mycol);
+			  const int g = BLACS::indxl2g(j, (*this).cblock(), BLACS::grid_cols, BLACS::mycol);
 				local_matrix.col(j).noalias() = local_matrix.col(j) * factors(g);
 			}
 
@@ -189,7 +189,7 @@ namespace peigen
 
 
 		// Operators
-		SharedMatrix<MatrixType> &operator=(SharedMatrix<MatrixType> &other)
+		SharedMatrix<MatrixType> &operator=(const SharedMatrix<MatrixType> &other)
 		{
 			nrows = other.nrows;
 			ncols = other.ncols; 
@@ -201,7 +201,7 @@ namespace peigen
 			ncblock = other.ncblock;
 			local_matrix = other.local_matrix;
 			std::copy(other.desc, other.desc + 9, desc);
-			other.clear();
+			//other.clear();
 			return *this;
 		}
 
