@@ -41,7 +41,7 @@ public:
 			TCLAP::ValueArg<string> filenameArg("f", "filename", "name of the data-file(s), without trailing number (rootname)", false /*req*/, "D:/DMD/DMD/x64/NNDEB/Re350_oscillating"/*default*/, "string", input);
 			
 			// Variables to keep
-			TCLAP::ValueArg<string> variablesArg("i", "variables", "name of the input variable(s) to keep in the snapshot matrix before starting the DMD. A name must be provided for each variable present in the disk data, separated by commas. Use 'null' in order to not use a variable. For example, if the data on disk contains the variables u, v, w, p but you only want to use u and p, use --variables u,null,null,p", false /*req*/, "null"/*default*/, "string", input);
+			TCLAP::ValueArg<string> variablesArg("i", "variables", "name of the input variable(s) to keep in the snapshot matrix before starting the DMD. A name must be provided for each variable present in the disk data, separated by commas. Use 'null' in order to not use a variable. For example, if the data on disk contains the variables u, v, w, p but you only want to use u and p, use --variables u,null,null,p", false /*req*/, "s"/*default*/, "string", input);
 
 			// Output directory
 			TCLAP::ValueArg<string> outdirArg("o", "outdir", "Output directory where result files are saved", false /*req*/, ""/*default*/, "string", input);
@@ -72,8 +72,15 @@ public:
 			dataset = datasetnameArg.getValue();
 
 			outdir = outdirArg.getValue();
-			if (outdir.back() != '/' && outdir.back() != '\\')
-				outdir = outdir + "/";
+			if (outdir.empty())
+			{
+				//outdir = "./";
+			}
+			else
+			{
+				if (outdir.back() != '/' && outdir.back() != '\\')
+					outdir = outdir + "/";
+			}
 
 			dispResiduals = residualsArg.getValue();
 
