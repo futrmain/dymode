@@ -720,7 +720,7 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 		/////*------------------------------      /PRINT SOME MODES TO HDF5      -----------------------------*/
 		/////**************************************************************************************************/
-
+		prof.toc("Dymode", "Dymode completed in (s): ");
 		stringstream profile_data;
 		profile_data << opt.outdir << argv[0] << "-" << rank << ".yml";
 
@@ -734,7 +734,7 @@ int main(int argc, char* argv[])
 		cout << "Pfff" << endl;
 	}
 
-	prof.toc("Dymode", "Dymode completed in (S): ");
+	
 	if (ROOT)	// not having if(root) prevents segfault at the begining of the program (!?!)
 		cout << endl << endl << "DYMODE OUT!" << endl;
 
