@@ -167,9 +167,16 @@ namespace peigen
 					   PBLAS::pxgesv(matrixLU.x, solution.cols(),
 						   matrixLU.localData(), matrixLU.i, matrixLU.j, desc,
 						   ipiv, solution.localData(), solution.i, solution.j, solution.descriptor(), &info);
-
-					   if (BLACS::myrank == 0)
-						   std::cout << "Solved a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesvx." << endl << "Return code was: " << info << endl << std::endl;
+					   if (info == 0)
+					   {
+						   if (BLACS::myrank == 0)
+							   std::cout << "Solved a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesvx." << endl << "pxgesvx returned successfully" << endl << std::endl;
+					   }
+					   else
+					   {
+						   if (BLACS::myrank == 0)
+							   std::cout << "Failed to solve a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesvx." << endl << "pxgesvx returned the following error code: " << info << endl << std::endl;
+					   }
 
 		//A.printDetails();
 		//B.printDetails();
