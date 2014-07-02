@@ -528,7 +528,7 @@ int main(int argc, char* argv[])
 		{
 			prof.tic("WriteLight");
 			cout << endl << "****** Saving spectrum...";
-			cout << endl << "*************************" << endl << " SPECTRUM IS BUGGED FOR SOME REASON. INVESTIGATE!" << endl << "*************************" << endl;
+			
 			Matrix<double, Dynamic, 2, RowMajor> spectrum(snaps.cols() - 1, 2);
 			spectrum.col(0) = lambdas.imag().binaryExpr(lambdas.real(), std::ptr_fun(atan2<double, double>));
 			spectrum.col(1) = amplitudes.transpose();
@@ -722,7 +722,8 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 		/////*------------------------------      /PRINT SOME MODES TO HDF5      -----------------------------*/
 		/////**************************************************************************************************/
-		prof.toc("Dymode", "Dymode completed in (s): ");
+		if (ROOT)
+			prof.toc("Dymode", "Dymode completed in (s): ");
 		stringstream profile_data;
 		profile_data << opt.outdir << argv[0] << "-" << rank << ".yml";
 

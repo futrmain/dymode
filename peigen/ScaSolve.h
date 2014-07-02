@@ -142,8 +142,16 @@ namespace peigen
 						if (BLACS::myrank == 0)
 							std::cout << "rcond = " << rcond << endl << "ferr = " << ferr(0, 0) << endl << "berr = " << berr(0,0) << std::endl;
 
-						if (BLACS::myrank == 0)
-							std::cout << "Solved a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesvx." << endl << "Return code was: " << info << endl << std::endl;
+						if (info == 0)
+						{
+							if (BLACS::myrank == 0)
+								std::cout << "Solved a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesvx." << endl << "pxgesvx returned successfully" << endl << std::endl;
+						}
+						else
+						{
+							if (BLACS::myrank == 0)
+								std::cout << "Failed to solve a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesvx." << endl << "pxgesvx returned the following error code: " << info << endl << std::endl;
+						}
 
 						solution = x;
 
@@ -170,12 +178,12 @@ namespace peigen
 					   if (info == 0)
 					   {
 						   if (BLACS::myrank == 0)
-							   std::cout << "Solved a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesvx." << endl << "pxgesvx returned successfully" << endl << std::endl;
+							   std::cout << "Solved a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesv." << endl << "pxgesv returned successfully" << endl << std::endl;
 					   }
 					   else
 					   {
 						   if (BLACS::myrank == 0)
-							   std::cout << "Failed to solve a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesvx." << endl << "pxgesvx returned the following error code: " << info << endl << std::endl;
+							   std::cout << "Failed to solve a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesv." << endl << "pxgesv returned the following error code: " << info << endl << std::endl;
 					   }
 
 		//A.printDetails();
