@@ -5,7 +5,7 @@
 ###################################################
 
 CC = /home/fromain/libs/openmpi-gcc/bin/mpiCC
-CCOPTS =  -std=c++11 -Wfatal-errors
+CCOPTS =  -std=c++11 -Wfatal-errors -Wno-deprecated-declarations
 CCOPTS_TRAIL = -lgfortran
 
 
@@ -98,5 +98,10 @@ debug:
 release:
 	$(CC) -O3 -DNDEBUG -march=native \
 	      $(CCOPTS) dymode/dymode.cpp $(INCLUDES) $(LIBDIRS) $(LIBS) $(CCOPTS_TRAIL) -o dymode.out
+
+assert:
+	$(CC) -O3 -march=native \
+              $(CCOPTS) dymode/dymode.cpp $(INCLUDES) $(LIBDIRS) $(LIBS) $(CCOPTS_TRAIL) -o dymode.out
+
 clean:
 	rm dymode.out

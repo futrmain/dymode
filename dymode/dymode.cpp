@@ -298,6 +298,7 @@ int main(int argc, char* argv[])
 		SharedMatrix<MatrixXcd> X = eig.eigenVectors();
 		MatrixXcd lambdas = eig.eigenValues();
 
+//cout << X << endl;
 		if (ROOT)
 			prof.toc("EigenProblem", "\nEigen problem solved in (s): ");
 		else
@@ -425,13 +426,13 @@ int main(int argc, char* argv[])
 							int ownerprev = BLACS::indxg2p(k, weights.rblock(), BLACS::grid_rows);
 							ownerprev = BLACS::Cblacs_pnum(BLACS::ctxt, ownerprev, BLACS::mycol);
 							MatrixXd re(1, solver.solution.local_matrix.cols());
-							MatrixXd im = solver.solution.local_matrix.row(l + 1);
+							MatrixXd im = solver.solution.local_matrix.row(l);
 							//cout << BLACS::myrank << ", receiving " << k << " from " << ownerprev << " with tag " << BLACS::myrank << endl << flush;
 							BLACS::COMM_ACTIVE.Recv(re.data(), re.cols(), MPI::DOUBLE, ownerprev, BLACS::myrank);
 							BLACS::COMM_ACTIVE.Send(im.data(), im.cols(), MPI::DOUBLE, ownerprev, BLACS::myrank);
 
-							weights.local_matrix.row(l + 1).real() = re;
-							weights.local_matrix.row(l + 1).imag() = solver.solution.local_matrix.row(l + 1);
+							weights.local_matrix.row(l).real() = re;
+							weights.local_matrix.row(l).imag() = solver.solution.local_matrix.row(l);
 						}
 					}
 					++k;
@@ -449,12 +450,13 @@ int main(int argc, char* argv[])
 		}
 		prof.toc("FormWeights");
 
-		/*if (ROOT)
+		/*
+		if (ROOT)
 		{
 			cout << "HERE COME the solution" << endl << flush;
 		}
-		cout << weights << endl;*/
-
+		cout << weights << endl;
+		*/
 
 
 		/////**************************************************************************************************/
