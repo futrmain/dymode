@@ -62,7 +62,7 @@ public:
 			TCLAP::ValueArg<string> geoArg("g", "geo", "Geometry file from Ensight", false /*req*/, "D:/DMD/DMD/x64/NNDEB/dmd.geo"/*default*/, "string", input);
 
 			// Number of singular values to display
-			TCLAP::ValueArg<int> nsingArg("d", "singulars", "If set to a positive number n, will display the first n singular values", false /*req*/, 0/*default*/, "int", input);
+			TCLAP::ValueArg<int> nsingArg("", "singulars", "If set to a positive number n, will display the first n singular values", false /*req*/, 0/*default*/, "int", input);
 
 			// Block size for shared matrics (blocks have to be square!)
 			TCLAP::ValueArg<int> sblockArg("b", "block", "Block size of the shared matrices. The minimum value is 6", false /*req*/, 6/*default*/, "int", input);
