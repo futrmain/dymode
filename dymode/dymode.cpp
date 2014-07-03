@@ -67,7 +67,7 @@ void gold_print_values(MatrixXf values, geofilereader geo, FILE *pFile)
 		stext << "part";
 		text = stext.str();
 		set80line(text);
-		
+
 		fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
 		stext.clear();//clear any bits set
 		stext.str(std::string());
@@ -110,11 +110,11 @@ int main(int argc, char* argv[])
 	// Create the BLACS grid
 	BLACS::init(numtasks);
 	//if (BLACS::ROOT)
-		//std::cout << "BLACS Initialized. MKL says " << mkl_res << endl << flush;
+	//std::cout << "BLACS Initialized. MKL says " << mkl_res << endl << flush;
 	//BLACS::printGrid();
 
 	MPI::COMM_WORLD.Barrier(); // For printing purposes
-	
+
 	prof.tic("Dymode");
 
 	geofilereader georead(opt.geofile);
@@ -198,15 +198,40 @@ int main(int argc, char* argv[])
 		if (ROOT)
 			prof.toc("SVD", "\nSVD completed in (s): ");
 		else
-			prof.toc("SVD");	
+			prof.toc("SVD");
 		cout << flush;
 		BLACS::COMM_ACTIVE.Barrier();
 		/////**************************************************************************************************/
 		/////*-------------------------------------      /DO AN SVD      -------------------------------------*/
 		/////**************************************************************************************************/
 
-		
 
+		/////**************************************************************************************************/
+		/////*-------------------------------      Print singular values      --------------------------------*/
+		/////**************************************************************************************************/
+
+		if (ROOT)
+		{
+			prof.tic("WriteSingulers");
+			cout << endl << "****** Saving singular values...";
+
+			std::ofstream s(opt.outdir + "singulars.txt");
+			s.precision(std::numeric_limits< double >::digits10);
+			if (s.is_open())
+			{
+				s << svd.singularValues << '\n';
+				s.close();
+				cout << "\tDONE." << endl;
+			}
+			else
+			{
+				cout << "\tError, could not open " << opt.outdir + "singulars.txt" << endl;
+			}
+		}
+
+		/////**************************************************************************************************/
+		/////*------------------------------      /Print singular values      --------------------------------*/
+		/////**************************************************************************************************/
 
 		///////**************************************************************************************************/
 		///////*-----------------------------      DO B := Ut * S2 * V * SIG+     ------------------------------*/
@@ -214,9 +239,9 @@ int main(int argc, char* argv[])
 		if (ROOT)
 			cout << endl << "****** Forming Ut * S2 * V * Sig+..." << endl << endl;
 		MPI::COMM_WORLD.Barrier(); // For printing purposes
-		
+
 		prof.tic("MultiplyB");
-		
+
 		SharedMatrix<MatrixXd> tmpMat = svd.matrixU.transpose() * snaps.block(0, 1, snaps.rows(), snaps.cols() - 1);
 
 		snaps.clear();
@@ -256,7 +281,7 @@ int main(int argc, char* argv[])
 
 
 		B.local_matrix = B.local_matrix * SIGplus;
-		
+
 		/*if (ROOT)
 			cout << "HERE COMES Ut M V SIG+" << endl << flush;
 			cout << B;*/
@@ -278,7 +303,7 @@ int main(int argc, char* argv[])
 		if (ROOT)
 			cout << endl << "****** Solving the eigen problem..." << endl << endl;
 		MPI::COMM_WORLD.Barrier(); // For printing purposes
-		
+
 		prof.tic("EigenProblem");
 
 		ScaEigenSolver<MatrixXd> eig(B, true, opt.eigSolver);
@@ -293,12 +318,12 @@ int main(int argc, char* argv[])
 				cout << "Residual from Eigen problem: " << r_eig << endl << flush;
 			std::cout.copyfmt(std::ios(NULL));
 		}
-		
+
 		// Matrix of eigen vectors
 		SharedMatrix<MatrixXcd> X = eig.eigenVectors();
 		MatrixXcd lambdas = eig.eigenValues();
 
-//cout << X << endl;
+		//cout << X << endl;
 		if (ROOT)
 			prof.toc("EigenProblem", "\nEigen problem solved in (s): ");
 		else
@@ -316,7 +341,7 @@ int main(int argc, char* argv[])
 		if (ROOT)
 			cout << endl << "****** Solving the linear system..." << endl << endl;
 		MPI::COMM_WORLD.Barrier(); // For printing purposes
-		
+
 		prof.tic("LinearSolve");
 		//cout << "(" << BLACS::myrank << ")" << endl;
 		prof.tic("FormRHS");
@@ -453,7 +478,7 @@ int main(int argc, char* argv[])
 		/*
 		if (ROOT)
 		{
-			cout << "HERE COME the solution" << endl << flush;
+		cout << "HERE COME the solution" << endl << flush;
 		}
 		cout << weights << endl;
 		*/
@@ -493,7 +518,7 @@ int main(int argc, char* argv[])
 				cout << "Residual from Modes: " << r << endl;
 			std::cout.copyfmt(std::ios(NULL));
 		}
-		
+
 		if (ROOT)
 			prof.toc("LinearSolve", "\nLinear system solved in (s): ");
 		else
@@ -504,12 +529,12 @@ int main(int argc, char* argv[])
 		/////*-----------------------------      /APPLY WEIGHT TO THE MODES      -----------------------------*/
 		/////**************************************************************************************************/
 
-		
+
 
 		/////**************************************************************************************************/
 		/////*------------------------------      Compute the mode's energy      -----------------------------*/
 		/////**************************************************************************************************/		
-		
+
 		prof.tic("Energy");
 		MatrixXd amplitudes = ColumnSquaredNorm(Modes);
 		prof.toc("Energy");
@@ -528,29 +553,38 @@ int main(int argc, char* argv[])
 		{
 			prof.tic("WriteLight");
 			cout << endl << "****** Saving spectrum...";
-			
+
 			Matrix<double, Dynamic, 2, RowMajor> spectrum(snaps.cols() - 1, 2);
 			spectrum.col(0) = lambdas.imag().binaryExpr(lambdas.real(), std::ptr_fun(atan2<double, double>));
 			spectrum.col(1) = amplitudes.transpose();
 
 			std::ofstream s(opt.outdir + "spectrum.txt");
-			//s.precision(std::numeric_limits< double >::digits10);
+			s.precision(std::numeric_limits< double >::digits10);
 			if (s.is_open())
 			{
 				s << spectrum << '\n';
 				s.close();
+				cout << "\tDONE." << endl;
 			}
-			cout << "\tDONE." << endl;
+			else
+			{
+				cout << "\tError, could not open " << opt.outdir + "spectrum.txt" << endl;
+			}
 
-			cout << endl << "****** Saving eigenvalues..." ;
+			cout << endl << "****** Saving eigenvalues...";
 			std::ofstream l(opt.outdir + "eigenvalues.txt");
-			//l.precision(std::numeric_limits< double >::digits10);
+			l.precision(std::numeric_limits< double >::digits10);
 			if (l.is_open())
 			{
 				l << lambdas << '\n';
 				l.close();
+				cout << "\tDONE." << endl;
 			}
-			cout << "\tDONE." << endl;
+			else
+			{
+				cout << "\tError, could not open " << opt.outdir + "eigenvalues.txt" << endl;
+			}
+
 			prof.toc("WriteLight", "\nLight data saved in (s): ");
 			cout << endl;
 		}
@@ -640,7 +674,7 @@ int main(int argc, char* argv[])
 				// Print to disk from row 0
 				if (BLACS::myrow == 0)
 				{
-					cout << "(" << BLACS::myrank << ") "<< " writing mode " << m << "...";
+					cout << "(" << BLACS::myrank << ") " << " writing mode " << m << "...";
 					FILE *pFile;
 
 					int offset_gold = 0;
@@ -658,7 +692,7 @@ int main(int argc, char* argv[])
 
 							values = exportdata.block(offset_gold, 0, dreader.Np, 1);
 							gold_print_values(values, georead, pFile);
-							
+
 							fclose(pFile);
 
 							stringstream filenameIM;
@@ -737,7 +771,7 @@ int main(int argc, char* argv[])
 		cout << "Pfff" << endl;
 	}
 
-	
+
 	if (ROOT)	// not having if(root) prevents segfault at the begining of the program (!?!)
 		cout << endl << endl << "DYMODE OUT!" << endl;
 
