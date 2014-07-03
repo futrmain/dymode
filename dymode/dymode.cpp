@@ -212,7 +212,7 @@ int main(int argc, char* argv[])
 
 		if (ROOT)
 		{
-			prof.tic("WriteSingulers");
+			prof.tic("WriteSingulars");
 			cout << endl << "****** Saving singular values...";
 
 			std::ofstream s(opt.outdir + "singulars.txt");
@@ -227,6 +227,7 @@ int main(int argc, char* argv[])
 			{
 				cout << "\tError, could not open " << opt.outdir + "singulars.txt" << endl;
 			}
+			prof.toc("WriteSingulars");
 		}
 
 		/////**************************************************************************************************/
@@ -605,6 +606,7 @@ int main(int argc, char* argv[])
 
 		//cout << BLACS::myrank << " amplitudes " << amplitudes << endl << endl;
 
+		//FIXME Add control if nmodes is larger than snaps.cols() - 1
 		for (int m = 0; m < opt.nmodes; ++m)
 		{
 			//Find mode with highest amplitude
@@ -759,7 +761,7 @@ int main(int argc, char* argv[])
 		if (ROOT)
 			prof.toc("Dymode", "Dymode completed in (s): ");
 		stringstream profile_data;
-		profile_data << opt.outdir << argv[0] << "-" << rank << ".yml";
+		profile_data << opt.outdir << "profiler" << "-" << rank << ".yml";
 
 		//if (BLACS::myrank == 0)
 		prof.dump(profile_data.str());
