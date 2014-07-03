@@ -20,6 +20,7 @@ public:
 	int nmodes;
 	string geofile;
 	int nsingulars;
+	int sblock;
 
 	options(int argc, char* argv[])
 	{
@@ -27,6 +28,8 @@ public:
 		{
 			// ************* Reader and Description ************* //
 			TCLAP::CmdLine input("Dymode, copyrighted for money", ' ', "0.1a");
+
+			
 
 			// Number of .h5 files to read
 			TCLAP::ValueArg<int> nfilesArg("n", "nfiles", "Number of files to read", false /*req*/, 1/*default*/, "int", input);
@@ -59,7 +62,10 @@ public:
 			TCLAP::ValueArg<string> geoArg("g", "geo", "Geometry file from Ensight", false /*req*/, "D:/DMD/DMD/x64/NNDEB/dmd.geo"/*default*/, "string", input);
 
 			// Number of singular values to display
-			TCLAP::ValueArg<int> nsingArg("", "singulars", "If set to a positive number n, will display the first n singular values", false /*req*/, 0/*default*/, "int", input);
+			TCLAP::ValueArg<int> nsingArg("d", "singulars", "If set to a positive number n, will display the first n singular values", false /*req*/, 0/*default*/, "int", input);
+
+			// Block size for shared matrics (blocks have to be square!)
+			TCLAP::ValueArg<int> sblockArg("b", "block", "Block size of the shared matrices. The minimum value is 6", false /*req*/, 6/*default*/, "int", input);
 
 			// ************* Parse the argv array ************* //
 			input.parse(argc, argv);
@@ -100,6 +106,14 @@ public:
 			filename = filenameArg.getValue();
 
 			nsingulars = nsingArg.getValue();
+
+			sblock = sblockArg.getValue();
+			if (sblock < 6)
+			{
+				sblock = 6;
+				//if (BLACS::myrank)
+					cout << "Warning: The block size must be at least 6. The size entered, " << sblock << ", is not valid. Using --block 6" << endl;
+			}
 		}
 		catch (TCLAP::ArgException &e)  // catch any exceptions
 		{

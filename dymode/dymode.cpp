@@ -133,7 +133,7 @@ int main(int argc, char* argv[])
 
 	dreader.read(opt.dataset, opt.variables);
 
-	SharedMatrix<MatrixXd> snaps(dreader.createShared(6, 6, opt.stride));
+	SharedMatrix<MatrixXd> snaps(dreader.createShared(opt.sblock, opt.sblock, opt.stride));
 
 	//cout << snaps << endl;
 
