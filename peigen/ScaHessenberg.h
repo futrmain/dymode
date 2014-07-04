@@ -21,6 +21,29 @@ namespace peigen
 
 		SharedMatrix<MatrixType>&  matrixH() { return Hessenberg; }
 		SharedMatrix<MatrixType>&  matrixQ() { return Q; }
+
+		Scalar residual(SharedMatrix<MatrixType> original)
+		{
+			SharedMatrix<MatrixType> R1 = original * Q;
+			SharedMatrix<MatrixType> R = Hessenberg;
+
+			Q.transpose();
+			R.pgemm(1.0, Q, R1, -1.0);
+			Q.clear(); // clear transpose flags
+
+			// Compute local highest residual
+			return R.local_matrix.cols() > 0 ? R.local_matrix.cwiseAbs().maxCoeff() : -1;
+		}
+
+		Scalar global_residual(SharedMatrix<MatrixType> original)
+		{
+			double r_loc = residual(original);
+			double r;
+
+			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX);
+
+			return r;
+		}
 	};
 
 	template <typename MatrixType>
@@ -31,13 +54,13 @@ namespace peigen
 		int info;
 		MatrixType work(1, 1);
 
-		PBLAS::pxgehrd(Hessenberg.rows(), /*ilo*/ Hessenberg.x, /*ihi*/ Hessenberg.y, Hessenberg.localData(), Hessenberg.i, Hessenberg.j, Hessenberg.descriptor(), tau.data(), work.data(), /*lwork*/ -1, &info);
+		PBLAS::pxgehrd(Hessenberg.rows(), /*ilo*/ Hessenberg.i, /*ihi*/ Hessenberg.x, Hessenberg.localData(), Hessenberg.i, Hessenberg.j, Hessenberg.descriptor(), tau.data(), work.data(), /*lwork*/ -1, &info);
 		if (info != 0)
 			std::cout << "(" << BLACS::myrank << ") " << "had a problem querying work space for Hessenberg decomposition, return value was " << info << endl;
-
+		
 		work.resize(work(0, 0), 1);
 
-		PBLAS::pxgehrd(Hessenberg.rows(), /*ilo*/ Hessenberg.x, /*ihi*/ Hessenberg.y, Hessenberg.localData(), Hessenberg.i, Hessenberg.j, Hessenberg.descriptor(), tau.data(), work.data(), /*lwork*/ work.size(), &info);
+		PBLAS::pxgehrd(Hessenberg.rows(), /*ilo*/ Hessenberg.i, /*ihi*/ Hessenberg.x, Hessenberg.localData(), Hessenberg.i, Hessenberg.j, Hessenberg.descriptor(), tau.data(), work.data(), /*lwork*/ work.size(), &info);
 		if (info != 0)
 			std::cout << "(" << BLACS::myrank << ") " << "had a problem computing Hessenberg decomposition, return value was " << info << endl; 
 
@@ -75,11 +98,12 @@ namespace peigen
 			std::cout << "tau on entry to matrixQ(): " << endl << tau << std::endl << endl;*/
 
 		// Initialize Q with Identity matrix
-		Q = SharedMatrix<MatrixType>(n, n, 'i', Hessenberg.rblock(), Hessenberg.cblock());
+		Q = SharedMatrix<MatrixType>::Eye(n, n, Hessenberg.rblock(), Hessenberg.cblock());
+		//cout << "Q = " << endl << endl << Q;
 
 		MatrixType work(1, 1);
 
-		PBLAS::pxormhr('R', 'N', Q.rows(), Q.cols(), /*ilo*/ Hessenberg.x, /*ihi*/ Hessenberg.y, Hessenberg.localData(), Hessenberg.i, Hessenberg.j, Hessenberg.descriptor(),
+		PBLAS::pxormhr('R', 'N', Q.rows(), Q.cols(), /*ilo*/ Hessenberg.i, /*ihi*/ Hessenberg.x, Hessenberg.localData(), Hessenberg.i, Hessenberg.j, Hessenberg.descriptor(),
 			tau.data(), Q.localData(), Q.i, Q.j, Q.descriptor(), work.data(), -1, &info);
 
 		if (info != 0)
@@ -89,7 +113,7 @@ namespace peigen
 		//	std::cout << "SIZE FOR ORMHR, lwork: " << work(0, 0) << std::endl;
 		work.resize(work(0, 0), 1);
 
-		PBLAS::pxormhr('R', 'N', Q.rows(), Q.cols(), /*ilo*/ Hessenberg.x, /*ihi*/ Hessenberg.y, Hessenberg.localData(), Hessenberg.i, Hessenberg.j, Hessenberg.descriptor(),
+		PBLAS::pxormhr('R', 'N', Q.rows(), Q.cols(), /*ilo*/ Hessenberg.i, /*ihi*/ Hessenberg.x, Hessenberg.localData(), Hessenberg.i, Hessenberg.j, Hessenberg.descriptor(),
 			tau.data(), Q.localData(), Q.i, Q.j, Q.descriptor(), work.data(), work.size(), &info);
 		
 		if (info != 0)
