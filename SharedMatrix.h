@@ -48,10 +48,11 @@ namespace peigen
 		~SharedMatrix<MatrixType>() {}
 
 		// Initializers
-		static SharedMatrix<MatrixType> Ones(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock) { return SharedMatrix<MatrixType>(global_M, global_N, 'o', rBlockSize, cBlockSize); } 
-		static SharedMatrix<MatrixType> Zeros(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock) { return SharedMatrix<MatrixType>(global_M, global_N, 'z', rBlockSize, cBlockSize); } 
-		static SharedMatrix<MatrixType> Proc(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock) { return SharedMatrix<MatrixType>(global_M, global_N, 'p', rBlockSize, cBlockSize); } 
-	
+		static SharedMatrix<MatrixType> Ones(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock) { return SharedMatrix<MatrixType>(global_M, global_N, 'o', rBlockSize, cBlockSize); }
+		static SharedMatrix<MatrixType> Zeros(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock) { return SharedMatrix<MatrixType>(global_M, global_N, 'z', rBlockSize, cBlockSize); }
+		static SharedMatrix<MatrixType> Proc(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock) { return SharedMatrix<MatrixType>(global_M, global_N, 'p', rBlockSize, cBlockSize); }
+		static SharedMatrix<MatrixType> Eye(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock) { return SharedMatrix<MatrixType>(global_M, global_N, 'i', rBlockSize, cBlockSize); }
+
 		// Members
 		void resize(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock);
 		void printDetails();
