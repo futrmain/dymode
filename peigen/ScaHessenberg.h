@@ -21,6 +21,29 @@ namespace peigen
 
 		SharedMatrix<MatrixType>&  matrixH() { return Hessenberg; }
 		SharedMatrix<MatrixType>&  matrixQ() { return Q; }
+
+		Scalar residual(SharedMatrix<MatrixType> original)
+		{
+			SharedMatrix<MatrixType> R1 = original * Q;
+			SharedMatrix<MatrixType> R = Hessenberg;
+
+			Q.transpose();
+			R.pgemm(1.0, Q, R1, -1.0);
+			Q.clear(); // clear transpose flags
+
+			// Compute local highest residual
+			return R.local_matrix.cols() > 0 ? R.local_matrix.cwiseAbs().maxCoeff() : -1;
+		}
+
+		Scalar global_residual(SharedMatrix<MatrixType> original)
+		{
+			double r_loc = residual(original);
+			double r;
+
+			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX);
+
+			return r;
+		}
 	};
 
 	template <typename MatrixType>
