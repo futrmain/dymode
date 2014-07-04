@@ -78,6 +78,10 @@ namespace peigen
 		{
 			ScaHessenberg<MatrixType> hess(S, computeEigenVectors);
 
+			double r_hess = hess.global_residual(S);
+			if (BLACS::myrank == 0)
+				cout << "Global residual from Hessenberg problem: " << r_hess << endl << flush;
+
 			if (method_ == EigHess)
 			{
 				SharedMatrix<MatrixType> H = hess.matrixH();
