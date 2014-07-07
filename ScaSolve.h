@@ -123,8 +123,8 @@ namespace peigen
 							&rcond, ferr.data(), berr.data(),
 							work.data(), -1, xspace.data(), -1, &info);
 
-						work.resize((int)work(0, 0), 1);
-						xspace.resize((int)xspace(0, 0), 1);
+						work.resize(max(1, (int)work(0, 0)), 1);
+						xspace.resize(max(1, (int)xspace(0, 0)), 1);
 
 						PBLAS::pxgesvx('E', 'N', matrixLU.x, solution.cols(),
 							matrixLU.localData(), matrixLU.i, matrixLU.j, matrixLU.desc,
