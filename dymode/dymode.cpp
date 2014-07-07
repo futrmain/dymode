@@ -171,7 +171,8 @@ int main(int argc, char* argv[])
 			if (opt.nsingulars > 0)
 			{
 				cout.precision(std::numeric_limits< double >::digits10);
-				cout << "First " << opt.nsingulars << " singular values: " << endl << svd.singularValues.col(0).head(opt.nsingulars).transpose() << endl << endl << flush;
+				int nsings = min((int)svd.singularValues.rows(), opt.nsingulars);
+				cout << "First " << nsings << " singular values: " << endl << svd.singularValues.col(0).head(nsings).transpose() << endl << endl << flush;
 				std::cout.copyfmt(std::ios(NULL));
 			}
 		}
@@ -609,7 +610,9 @@ int main(int argc, char* argv[])
 		//cout << BLACS::myrank << " amplitudes " << amplitudes << endl << endl;
 
 		//FIXME Add control if nmodes is larger than snaps.cols() - 1
-		for (int m = 0; m < opt.nmodes; ++m)
+		int m = 0;
+		bool no_modes_left = false;		
+		while (m < opt.nmodes && no_modes_left == false)
 		{
 			//Find mode with highest amplitude
 			amplitudes.maxCoeff(&x_mode, &i_mode); //x_mode is always 0 since amplitudes is a 1xN matrix
@@ -624,12 +627,16 @@ int main(int argc, char* argv[])
 				amplitudes.maxCoeff(&x_mode, &i_mode);
 				//cout << BLACS::myrank << " i_mode in loop " << i_mode << endl << endl;
 			}
+
+			if (amplitudes(0, i_mode) < 0)
+			  no_modes_left = true;
 			BLACS::COMM_ACTIVE.Barrier();
 			//cout << BLACS::myrank << " i_mode final " << i_mode << endl << endl;
 			amplitudes(0, i_mode) = -1;
 			BLACS::COMM_ACTIVE.Barrier();
 			//cout << BLACS::myrank << " test " << i_mode << endl << endl;
-
+			if (no_modes_left == false)
+			  {
 			if (BLACS::mycol == BLACS::indxg2p(i_mode, Modes.cblock(), BLACS::grid_cols))
 			{
 				int i_loc = BLACS::indxg2l(i_mode, Modes.cblock(), BLACS::grid_cols);
@@ -730,6 +737,8 @@ int main(int argc, char* argv[])
 					}
 				}
 			}
+			++m;
+			  } // no_modes_left == false
 		}
 
 		// Write the .case file
