@@ -98,23 +98,29 @@ namespace peigen
 		// FIXME .block() does not work on empty matrices...
 		MatrixType localBlock()
 		{
-			int i_loc = 0;
-			while (BLACS::indxl2g(i_loc, this->rblock(), BLACS::grid_rows, BLACS::myrow) < this->i - 1)
-				++i_loc;
+		  int i_loc = 0;
+		  while (BLACS::indxl2g(i_loc, this->rblock(), BLACS::grid_rows, BLACS::myrow) < this->i - 1
+			 && i_loc < this->local_matrix.rows() - 1)
+		    ++i_loc;
 
-			int j_loc = 0;
-			while (BLACS::indxl2g(j_loc, this->cblock(), BLACS::grid_cols, BLACS::mycol) < this->j - 1)
-				++j_loc;
+		  int j_loc = 0;
+		  while (BLACS::indxl2g(j_loc, this->cblock(), BLACS::grid_cols, BLACS::mycol) < this->j - 1
+			 && j_loc < this->local_matrix.cols() - 1)
+		    ++j_loc;
 
-			int li_loc = this->local_matrix.rows() - i_loc;
-			while (BLACS::indxl2g(i_loc + li_loc, this->rblock(), BLACS::grid_rows, BLACS::myrow) > this->i + this->x - 1)
-				--li_loc;
+		  int x_loc = this->local_matrix.rows() - 1;
+		  while (BLACS::indxl2g(x_loc, this->rblock(), BLACS::grid_rows, BLACS::myrow) > this->i - 1 + this->x - 1
+			 && x_loc > 0)
+		    --x_loc;
+		  x_loc = x_loc + 1 - i_loc;
 
-			int lj_loc = this->local_matrix.cols() - j_loc;
-			while (BLACS::indxl2g(j_loc + lj_loc, this->cblock(), BLACS::grid_cols, BLACS::mycol) > this->j + this->y - 1)
-				--lj_loc;
-
-			return this->local_matrix.block(i_loc, j_loc, li_loc, lj_loc);
+		  int y_loc = this->local_matrix.cols() - 1;
+		  while (BLACS::indxl2g(y_loc, this->cblock(), BLACS::grid_cols, BLACS::mycol) > this->j - 1 + this->y - 1 
+			 && y_loc>0)
+		    --y_loc;
+		  y_loc = y_loc + 1 - j_loc;
+		  
+		  return this->local_matrix.block(i_loc, j_loc, x_loc, y_loc);
 		}
 
 		// FIXME peigen needs a more elegant asDiagonal system to do this type of operations
