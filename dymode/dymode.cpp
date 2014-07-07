@@ -135,12 +135,17 @@ int main(int argc, char* argv[])
 
 	SharedMatrix<MatrixXd> snaps(dreader.createShared(opt.sblock, opt.sblock, opt.stride));
 
-	//cout << snaps << endl;
-
 	if (ROOT)
 		prof.toc("Read", "\nReading completed in (s): ");
 	else
 		prof.toc("Read");
+
+	if (ROOT)
+	{
+	    cout << endl << "The snapshot matrix is    " << snaps.rows() << " by " << snaps.cols() << endl;
+	    cout << "The block size is         " << snaps.cblock() << endl;
+	}
+
 	/////**************************************************************************************************/
 	/////*----------------------------------       /READ THE DATA      -----------------------------------*/
 	/////**************************************************************************************************/
@@ -171,7 +176,8 @@ int main(int argc, char* argv[])
 			if (opt.nsingulars > 0)
 			{
 				cout.precision(std::numeric_limits< double >::digits10);
-				cout << "First " << opt.nsingulars << " singular values: " << endl << svd.singularValues.col(0).head(opt.nsingulars).transpose() << endl << endl << flush;
+				int nsings = min((int)svd.singularValues.rows(), opt.nsingulars);
+				cout << "First " << nsings << " singular values: " << endl << svd.singularValues.col(0).head(nsings).transpose() << endl << endl << flush;
 				std::cout.copyfmt(std::ios(NULL));
 			}
 		}
@@ -316,7 +322,7 @@ int main(int argc, char* argv[])
 			double r_eig = eig.global_residual(B);
 			prof.toc("residualEig");
 			if (ROOT)
-				cout << "Residual from Eigen problem: " << r_eig << endl << flush;
+				cout << "Residual from Eigen problem:             " << r_eig << endl << flush;
 			std::cout.copyfmt(std::ios(NULL));
 		}
 
@@ -326,7 +332,7 @@ int main(int argc, char* argv[])
 
 		//cout << X << endl;
 		if (ROOT)
-			prof.toc("EigenProblem", "\nEigen problem solved in (s): ");
+			prof.toc("EigenProblem", "\nEigen problem solved in (s):             ");
 		else
 			prof.toc("EigenProblem");
 		cout << flush;
@@ -346,11 +352,24 @@ int main(int argc, char* argv[])
 		prof.tic("LinearSolve");
 		//cout << "(" << BLACS::myrank << ")" << endl;
 		prof.tic("FormRHS");
+		
+		if (ROOT)
+		  cout << "Preparing the right-hand-side...";
+
 		SharedMatrix<MatrixXd> rhs = svd.matrixU.transpose() * snaps.block(0, 0/*Nt - 1*/, snaps.rows(), 1);
 		svd.matrixU.clear();
 		snaps.clear();
+
 		SharedMatrix<MatrixXcd> rhsZ = rhs.cast<std::complex<double> >();
 		prof.toc("FormRHS");
+
+		if (ROOT)
+			cout << "\tDONE" << endl;
+
+		if (ROOT)
+                  cout << "Preparing the system...       ";
+
+		BLACS::COMM_ACTIVE.Barrier();
 
 		prof.tic("FormSystem");
 		// Construct a system so that the weights will have to be in complex conjugate pairs
@@ -384,16 +403,25 @@ int main(int argc, char* argv[])
 		}
 		prof.toc("FormSystem");
 
+		BLACS::COMM_ACTIVE.Barrier();
 
+		if (ROOT)
+                  cout << "\tDONE" << endl << endl;
 
 		BLACS::COMM_ACTIVE.Barrier();
 
 		//ScaSolve<MatrixXcd> solver(X, rhsZ, peigen::EigenSVD);
 
+		if (ROOT)
+                  cout << "Calling ScaLAPACK" << endl;
+
+
+		BLACS::COMM_ACTIVE.Barrier();
+
+
 		prof.tic("SolveSystem");
 		ScaSolve<MatrixXd> solver(System, rhs, peigen::pxgesvx);
 		prof.toc("SolveSystem");
-
 
 		if (opt.dispResiduals)
 		{
@@ -408,6 +436,9 @@ int main(int argc, char* argv[])
 
 		//cout << BLACS::myrank << ", lambdas: " << lambdas << endl << flush;
 		//cout << BLACS::myrank << ", solution: " << solver.solution.local_matrix << endl << flush;
+		
+		if (ROOT)
+		  cout << "Reconstructing the weights...";
 
 		prof.tic("FormWeights");
 		// Reconstitute the solution to the original system
@@ -475,6 +506,9 @@ int main(int argc, char* argv[])
 			}
 		}
 		prof.toc("FormWeights");
+		
+		if (ROOT)
+		  cout << "\tDONE" << endl;
 
 		/*
 		if (ROOT)
@@ -494,9 +528,19 @@ int main(int argc, char* argv[])
 		/////*-----------------------------      APPLY WEIGHT TO THE MODES      ------------------------------*/
 		/////**************************************************************************************************/
 
+		if (ROOT)
+                  cout << "Creating the modes...        ";
+
 		SharedMatrix<MatrixXcd> Modes = svd.matrixU.cast<std::complex<double> >() * X;
 
+		if (ROOT)
+                  cout << "\tDONE" << endl;
+
+		if (ROOT)
+                  cout << "Scaling the modes...         ";
 		Modes.ColScale(weights);
+		if (ROOT)
+                  cout << "\tDONE" << endl;
 
 		if (opt.dispResiduals)
 		{
@@ -510,13 +554,15 @@ int main(int argc, char* argv[])
 			reconstruct.pgemm(1., Modes, Vandermonde, -1.);
 			//cout << reconstruct << endl;
 
-			double r_loc = reconstruct.localBlock().cwiseAbs().maxCoeff();
+			double r_loc = (reconstruct.localBlock().rows() * reconstruct.localBlock().cols()) > 0
+			  ? reconstruct.localBlock().cwiseAbs().maxCoeff()
+			  : -1;
 			double r;
 			BLACS::COMM_ACTIVE.Reduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
 			prof.toc("residualLin");
 
 			if (ROOT)
-				cout << "Residual from Modes: " << r << endl;
+				cout << "Residual from Modes:         " << r << endl;
 			std::cout.copyfmt(std::ios(NULL));
 		}
 
@@ -535,11 +581,14 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 		/////*------------------------------      Compute the mode's energy      -----------------------------*/
 		/////**************************************************************************************************/		
-
+		
+		if (ROOT)
+			cout << "Computing the modes norms...";
 		prof.tic("Energy");
-		MatrixXd amplitudes = ColumnSquaredNorm(Modes);
+		MatrixXd amplitudes = ColumnNorm(Modes);
 		prof.toc("Energy");
-
+		if (ROOT)
+			cout << "\tDONE";
 
 		/////**************************************************************************************************/
 		/////*-----------------------------      /Compute the mode's energy      -----------------------------*/
@@ -607,7 +656,9 @@ int main(int argc, char* argv[])
 		//cout << BLACS::myrank << " amplitudes " << amplitudes << endl << endl;
 
 		//FIXME Add control if nmodes is larger than snaps.cols() - 1
-		for (int m = 0; m < opt.nmodes; ++m)
+		int m = 0;
+		bool no_modes_left = false;		
+		while (m < opt.nmodes && no_modes_left == false)
 		{
 			//Find mode with highest amplitude
 			amplitudes.maxCoeff(&x_mode, &i_mode); //x_mode is always 0 since amplitudes is a 1xN matrix
@@ -622,12 +673,16 @@ int main(int argc, char* argv[])
 				amplitudes.maxCoeff(&x_mode, &i_mode);
 				//cout << BLACS::myrank << " i_mode in loop " << i_mode << endl << endl;
 			}
+
+			if (amplitudes(0, i_mode) < 0)
+			  no_modes_left = true;
 			BLACS::COMM_ACTIVE.Barrier();
 			//cout << BLACS::myrank << " i_mode final " << i_mode << endl << endl;
 			amplitudes(0, i_mode) = -1;
 			BLACS::COMM_ACTIVE.Barrier();
 			//cout << BLACS::myrank << " test " << i_mode << endl << endl;
-
+			if (no_modes_left == false)
+			  {
 			if (BLACS::mycol == BLACS::indxg2p(i_mode, Modes.cblock(), BLACS::grid_cols))
 			{
 				int i_loc = BLACS::indxg2l(i_mode, Modes.cblock(), BLACS::grid_cols);
@@ -728,6 +783,8 @@ int main(int argc, char* argv[])
 					}
 				}
 			}
+			++m;
+			  } // no_modes_left == false
 		}
 
 		// Write the .case file
@@ -750,7 +807,7 @@ int main(int argc, char* argv[])
 		cout << flush;
 		BLACS::COMM_ACTIVE.Barrier();
 		if (ROOT)
-			prof.toc("SaveModes", "\nModes saved in (s): ");
+			prof.toc("SaveModes", "\nModes saved in (s):      ");
 		else
 			prof.toc("SaveModes");
 		cout << flush;

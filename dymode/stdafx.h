@@ -31,7 +31,7 @@ using namespace Eigen;
 using namespace peigen;
 
 // Dymode helper functions
-#include "ColumnSquaredNorm.h"
+#include "ColumnNorm.h"
 #include "H5inDMD.h"
 #include "GEOinDMD.h"
 #include "options.h"

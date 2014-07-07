@@ -26,13 +26,12 @@ namespace peigen
 		{
 			SharedMatrix<MatrixType> R1 = original * Q;
 			SharedMatrix<MatrixType> R = Hessenberg;
-
 			Q.transpose();
 			R.pgemm(1.0, Q, R1, -1.0);
 			Q.clear(); // clear transpose flags
-
+			
 			// Compute local highest residual
-			return R.local_matrix.cols() > 0 ? R.local_matrix.cwiseAbs().maxCoeff() : -1;
+			return (R.local_matrix.rows() * R.local_matrix.cols()) > 0 ? R.local_matrix.cwiseAbs().maxCoeff() : -1;
 		}
 
 		Scalar global_residual(SharedMatrix<MatrixType> original)
