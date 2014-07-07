@@ -140,7 +140,7 @@ namespace peigen
 							std::cout << "lwork is " << work(0, 0) << ", lrwork is: " << xspace(0,0) << ", info is: " << info << std::endl;*/
 
 						if (BLACS::myrank == 0)
-							std::cout << "rcond = " << rcond << endl << "ferr = " << ferr(0, 0) << endl << "berr = " << berr(0,0) << std::endl;
+							std::cout << "rcond = " << rcond << endl << "ferr  = " << ferr(0, 0) << endl << "berr  = " << berr(0,0) << std::endl;
 
 						if (info == 0)
 						{
