@@ -41,16 +41,14 @@ namespace peigen
 			R.pgemm(1.0, original.template cast<complex<double> >(), evectors, -1.0);
 
 			// Compute local highest residual
-			return R.local_matrix.cols() > 0 ? R.local_matrix.cwiseAbs().maxCoeff() : -1;
+			return (R.local_matrix.rows() * R.local_matrix.cols()) > 0 ? R.local_matrix.cwiseAbs().maxCoeff() : -1;
 		}
 
 		RealScalar global_residual(SharedMatrix<MatrixType> original)
 		{
 			double r_loc = residual(original);
 			double r;
-
 			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX);
-
 			return r;
 		}
 

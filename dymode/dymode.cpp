@@ -510,7 +510,9 @@ int main(int argc, char* argv[])
 			reconstruct.pgemm(1., Modes, Vandermonde, -1.);
 			//cout << reconstruct << endl;
 
-			double r_loc = reconstruct.localBlock().cwiseAbs().maxCoeff();
+			double r_loc = (reconstruct.localBlock().rows() * reconstruct.localBlock().cols()) > 0
+			  ? reconstruct.localBlock().cwiseAbs().maxCoeff()
+			  : -1;
 			double r;
 			BLACS::COMM_ACTIVE.Reduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
 			prof.toc("residualLin");

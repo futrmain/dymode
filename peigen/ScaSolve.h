@@ -59,7 +59,7 @@ namespace peigen
 			R.pgemm(1., A, solution, -1.);
 			
 			// Compute local highest residual
-			return R.local_matrix.cols() > 0 ? R.local_matrix.cwiseAbs().maxCoeff() : -1;
+			return (R.local_matrix.rows() * R.local_matrix.cols()) > 0 ? R.local_matrix.cwiseAbs().maxCoeff() : -1;
 		}
 
 		RealScalar global_residual(SharedMatrix<MatrixType> original, SharedMatrix<MatrixType> rhs)
