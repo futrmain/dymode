@@ -38,6 +38,14 @@ Eigen::Matrix<typename MatrixType::RealScalar, Eigen::Dynamic, Eigen::Dynamic> C
 				BLACS::COMM_ACTIVE.Barrier();
 			}
 		}
+		else 
+		{
+			BLACS::COMM_ACTIVE.Barrier();
+		}
+	}
+	else
+	{
+		BLACS::COMM_ACTIVE.Barrier();
 	}
 	
 	SNorms.gather(0);
