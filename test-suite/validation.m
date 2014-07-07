@@ -72,7 +72,7 @@ for s = stride
             energy_c = energy_c(ie, 2);
             
             res_modes = max(abs(modes_c - modes_mat));
-            res_energy = max(abs(energy_c' - energy_mat));
+            res_energy = max(abs(energy_c' - sqrt(energy_mat)));
             res_eig = max(abs(eigenvalues_c - eiv_mat));
             res_sings = max(singulars_c - sing_mat);
             

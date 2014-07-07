@@ -537,7 +537,7 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/		
 
 		prof.tic("Energy");
-		MatrixXd amplitudes = ColumnSquaredNorm(Modes);
+		MatrixXd amplitudes = ColumnNorm(Modes);
 		prof.toc("Energy");
 
 
