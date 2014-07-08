@@ -123,7 +123,7 @@ int main(int argc, char* argv[])
 	/////*----------------------------------       READ THE DATA      ------------------------------------*/
 	/////**************************************************************************************************/
 	if (ROOT)
-		cout << endl << "****** Reading data..." << endl << endl;
+		cout << endl << "         READING DATA" << endl << "******************************" << endl;
 	MPI::COMM_WORLD.Barrier(); // For printing purposes
 
 	// Use all the processes for faster IO, regardless of them being used in the process grid
@@ -162,9 +162,11 @@ int main(int argc, char* argv[])
 		/////*-------------------------------------       DO AN SVD      -------------------------------------*/
 		/////**************************************************************************************************/
 		if (ROOT)
-			cout << endl << "****** Computing Singular Value Decomposition..." << endl << endl;
+			cout << endl << " SINGULAR VALUE DECOMPOSITION " << endl << "******************************" << endl;
 		MPI::COMM_WORLD.Barrier(); // For printing purposes
 
+		if (ROOT)
+			cout << "Calling ScaLAPACK" << endl <<  "=================" << endl;
 		prof.tic("SVD");
 		ScaSVD<MatrixXd> svd(snaps.block(0, 0, snaps.rows(), snaps.cols() - 1), true, true);
 		snaps.clear();
@@ -197,7 +199,7 @@ int main(int argc, char* argv[])
 			double r_svd = svd.global_residual(snaps.block(0, 0, snaps.rows(), snaps.cols() - 1));
 			prof.toc("residualSVD");
 			if (ROOT)
-				cout << "Residual from SVD: " << r_svd << endl << flush;
+				cout << "Residual from SVD:    " << r_svd << endl << flush;
 			std::cout.copyfmt(std::ios(NULL));
 		}
 
@@ -218,9 +220,9 @@ int main(int argc, char* argv[])
 
 		if (ROOT)
 		{
+			cout << endl << "Saving singular values..."; 
 			prof.tic("WriteSingulars");
-			cout << endl << "****** Saving singular values...";
-
+			
 			std::ofstream s(opt.outdir + "singulars.txt");
 			s.precision(std::numeric_limits< double >::digits10);
 			if (s.is_open())
@@ -244,7 +246,7 @@ int main(int argc, char* argv[])
 		///////*-----------------------------      DO B := Ut * S2 * V * SIG+     ------------------------------*/
 		///////**************************************************************************************************/
 		if (ROOT)
-			cout << endl << "****** Forming Ut * S2 * V * Sig+..." << endl << endl;
+			cout << endl << "      Ut * S2 * V * Sig+      " << endl << "******************************" << endl;
 		MPI::COMM_WORLD.Barrier(); // For printing purposes
 
 		prof.tic("MultiplyB");
@@ -270,7 +272,7 @@ int main(int argc, char* argv[])
 		if (ROOT)
 		{
 			cout.precision(std::numeric_limits< double >::digits10);
-			cout << "pinv_tol: " << pinv_tol << endl << flush;
+			cout << "pseudo inverse tolerance: " << pinv_tol << endl << flush;
 			std::cout.copyfmt(std::ios(NULL));
 		}
 		for (int i = 0; i < B.local_matrix.cols(); i++)
@@ -308,9 +310,11 @@ int main(int argc, char* argv[])
 		/////*------------------------------     DO AN EIGENVECTOR SOLUTION     ------------------------------*/
 		/////**************************************************************************************************/
 		if (ROOT)
-			cout << endl << "****** Solving the eigen problem..." << endl << endl;
+			cout << endl << "         EIGEN PROBLEM        " << endl << "******************************" << endl;
 		MPI::COMM_WORLD.Barrier(); // For printing purposes
 
+		if (ROOT)
+			cout << "Calling ScaLAPACK" << endl << "=================" << endl;
 		prof.tic("EigenProblem");
 
 		ScaEigenSolver<MatrixXd> eig(B, true, opt.eigSolver);
@@ -322,7 +326,7 @@ int main(int argc, char* argv[])
 			double r_eig = eig.global_residual(B);
 			prof.toc("residualEig");
 			if (ROOT)
-				cout << "Residual from Eigen problem:             " << r_eig << endl << flush;
+				cout << "Residual from Eigen problem:        " << r_eig << endl << flush;
 			std::cout.copyfmt(std::ios(NULL));
 		}
 
@@ -332,7 +336,7 @@ int main(int argc, char* argv[])
 
 		//cout << X << endl;
 		if (ROOT)
-			prof.toc("EigenProblem", "\nEigen problem solved in (s):             ");
+			prof.toc("EigenProblem", "\nEigen problem solved in (s):        ");
 		else
 			prof.toc("EigenProblem");
 		cout << flush;
@@ -346,7 +350,7 @@ int main(int argc, char* argv[])
 		/////*------------------------------      DO A LINEAR SYSTEM SOLVE      ------------------------------*/
 		/////**************************************************************************************************/
 		if (ROOT)
-			cout << endl << "****** Solving the linear system..." << endl << endl;
+			cout << endl << "         LINEAR SYSTEM        " << endl << "******************************" << endl;
 		MPI::COMM_WORLD.Barrier(); // For printing purposes
 
 		prof.tic("LinearSolve");
@@ -367,7 +371,7 @@ int main(int argc, char* argv[])
 			cout << "\tDONE" << endl;
 
 		if (ROOT)
-                  cout << "Preparing the system...       ";
+                  cout << "Preparing the system...         ";
 
 		BLACS::COMM_ACTIVE.Barrier();
 
@@ -413,7 +417,7 @@ int main(int argc, char* argv[])
 		//ScaSolve<MatrixXcd> solver(X, rhsZ, peigen::EigenSVD);
 
 		if (ROOT)
-                  cout << "Calling ScaLAPACK" << endl;
+			cout << "Calling ScaLAPACK" << endl << "=================" << endl;
 
 
 		BLACS::COMM_ACTIVE.Barrier();
@@ -438,7 +442,7 @@ int main(int argc, char* argv[])
 		//cout << BLACS::myrank << ", solution: " << solver.solution.local_matrix << endl << flush;
 		
 		if (ROOT)
-		  cout << "Reconstructing the weights...";
+		  cout << "Reconstructing the weights... ";
 
 		prof.tic("FormWeights");
 		// Reconstitute the solution to the original system
@@ -529,7 +533,7 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 
 		if (ROOT)
-                  cout << "Creating the modes...        ";
+                  cout << "Creating the modes...         ";
 
 		SharedMatrix<MatrixXcd> Modes = svd.matrixU.cast<std::complex<double> >() * X;
 
@@ -537,7 +541,7 @@ int main(int argc, char* argv[])
                   cout << "\tDONE" << endl;
 
 		if (ROOT)
-                  cout << "Scaling the modes...         ";
+                  cout << "Scaling the modes...          ";
 		Modes.ColScale(weights);
 		if (ROOT)
                   cout << "\tDONE" << endl;
@@ -562,12 +566,12 @@ int main(int argc, char* argv[])
 			prof.toc("residualLin");
 
 			if (ROOT)
-				cout << "Residual from Modes:         " << r << endl;
+				cout << "Residual from Modes:            " << r << endl;
 			std::cout.copyfmt(std::ios(NULL));
 		}
 
 		if (ROOT)
-			prof.toc("LinearSolve", "\nLinear system solved in (s): ");
+			prof.toc("LinearSolve", "\nLinear system solved in (s):    ");
 		else
 			prof.toc("LinearSolve");
 		cout << flush;
@@ -577,13 +581,13 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 
 
-
+		if (ROOT)
+			cout << endl << "          SAVING DATA" << endl << "******************************" << endl;
 		/////**************************************************************************************************/
 		/////*------------------------------      Compute the mode's energy      -----------------------------*/
-		/////**************************************************************************************************/		
-		
+		/////**************************************************************************************************/				
 		if (ROOT)
-			cout << "Computing the modes norms...";
+			cout << "Computing the modes' norm...";
 		prof.tic("Energy");
 		MatrixXd amplitudes = ColumnNorm(Modes);
 		prof.toc("Energy");
@@ -602,7 +606,7 @@ int main(int argc, char* argv[])
 		if (ROOT)
 		{
 			prof.tic("WriteLight");
-			cout << endl << "****** Saving spectrum...";
+			cout << endl << "Saving spectrum...          ";
 
 			Matrix<double, Dynamic, 2, RowMajor> spectrum(snaps.cols() - 1, 2);
 			spectrum.col(0) = lambdas.imag().binaryExpr(lambdas.real(), std::ptr_fun(atan2<double, double>));
@@ -621,7 +625,7 @@ int main(int argc, char* argv[])
 				cout << "\tError, could not open " << opt.outdir + "spectrum.txt" << endl;
 			}
 
-			cout << endl << "****** Saving eigenvalues...";
+			cout << "Saving eigenvalues...       ";
 			std::ofstream l(opt.outdir + "eigenvalues.txt");
 			l.precision(std::numeric_limits< double >::digits10);
 			if (l.is_open())
