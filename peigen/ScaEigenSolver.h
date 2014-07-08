@@ -78,7 +78,7 @@ namespace peigen
 
 			double r_hess = hess.global_residual(S);
 			if (BLACS::myrank == 0)
-				cout << "Global residual from Hessenberg problem: " << r_hess << endl << flush;
+				cout << "Residual from Hessenberg reduction: " << r_hess << endl << flush;
 
 			if (method_ == EigHess)
 			{
