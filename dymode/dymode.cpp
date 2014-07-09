@@ -163,7 +163,7 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 		if (ROOT)
 			cout << endl << " SINGULAR VALUE DECOMPOSITION " << endl << "******************************" << endl;
-		MPI::COMM_WORLD.Barrier(); // For printing purposes
+		BLACS::COMM_ACTIVE.Barrier(); // For printing purposes
 
 		if (ROOT)
 			cout << "Calling ScaLAPACK" << endl <<  "=================" << endl;
@@ -247,7 +247,7 @@ int main(int argc, char* argv[])
 		///////**************************************************************************************************/
 		if (ROOT)
 			cout << endl << "      Ut * S2 * V * Sig+      " << endl << "******************************" << endl;
-		MPI::COMM_WORLD.Barrier(); // For printing purposes
+		BLACS::COMM_ACTIVE.Barrier(); // For printing purposes
 
 		prof.tic("MultiplyB");
 
@@ -311,7 +311,7 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 		if (ROOT)
 			cout << endl << "         EIGEN PROBLEM        " << endl << "******************************" << endl;
-		MPI::COMM_WORLD.Barrier(); // For printing purposes
+		BLACS::COMM_ACTIVE.Barrier(); // For printing purposes
 
 		if (ROOT)
 			cout << "Calling ScaLAPACK" << endl << "=================" << endl;
@@ -351,7 +351,7 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 		if (ROOT)
 			cout << endl << "         LINEAR SYSTEM        " << endl << "******************************" << endl;
-		MPI::COMM_WORLD.Barrier(); // For printing purposes
+		BLACS::COMM_ACTIVE.Barrier(); // For printing purposes
 
 		prof.tic("LinearSolve");
 		//cout << "(" << BLACS::myrank << ")" << endl;
@@ -830,10 +830,9 @@ int main(int argc, char* argv[])
 		BLACS::COMM_ACTIVE.Barrier();
 	} // end IF ACTIVE
 	else
-	{
-		cout << "Pfff" << endl;
-	}
+	{	}
 
+	MPI::COMM_WORLD.Barrier();
 
 	if (ROOT)	// not having if(root) prevents segfault at the begining of the program (!?!)
 		cout << endl << endl << "DYMODE OUT!" << endl;
