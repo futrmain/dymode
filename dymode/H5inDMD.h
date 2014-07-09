@@ -433,9 +433,18 @@ namespace phdfp
 			MPI::COMM_WORLD.Barrier();
 		}
 		*/
-
+		
 		// Step 3: Create the SharedMatrix, will be the receive buffer
-		peigen::SharedMatrix<MatrixXd> S(virtual_dims[0], ceil((float)i_glob/nskip), rblock, cblock);
+		peigen::SharedMatrix<MatrixXd> S;
+		if (BLACS::active)
+		{
+			S.resize(virtual_dims[0], ceil((float)i_glob / nskip), rblock, cblock);
+		}
+		else
+		{
+			S.local_matrix.resize(1, 1);
+			// Processes not on the grid keep an uninitialized SharedMatrix
+		}
 		//S.printDetails();
 		//cout << BLACS::myrank << " i_glob " << i_glob << endl;
 
@@ -462,21 +471,18 @@ namespace phdfp
 			MPI::COMM_WORLD.Irecv(S.localData() + offset * S.local_matrix.rows(), S.local_matrix.rows() * nsnaps_from_p, MPI::DOUBLE, p, p);
 			offset += nsnaps_from_p;
 		}
-
+		
 		MPI::COMM_WORLD.Barrier();
-
 		// Step 5: Send the data to everyone
 		for (int prow = 0; prow < BLACS::grid_rows; ++prow)
 		{
 			for (int pcol = 0; pcol < BLACS::grid_cols; ++pcol)
 			{
-				int dest = BLACS::Cblacs_pnum(BLACS::ctxt, prow, pcol);
-				MPI::COMM_WORLD.Send(SendBuff(prow, pcol).data(), SendBuff(prow, pcol).size(), MPI::DOUBLE, dest, BLACS::myrank);
+				int dest = BLACS::peigen_pnum(prow, pcol);
+				MPI::COMM_WORLD.Send(SendBuff(prow, pcol).data(), SendBuff(prow, pcol).rows() * SendBuff(prow, pcol).cols(), MPI::DOUBLE, dest, BLACS::myrank);
 			}
 		}
-
 		MPI::COMM_WORLD.Barrier();
-
 		//(const void* buf, int count, const Datatype& datatype, int dest, int tag) const; 
 		//BLACS::COMM_ACTIVE.Recv(localData(), local_matrix.size(), MPIType(), source, 1);
 

@@ -82,6 +82,13 @@ namespace peigen
 		double *dONE ;
 		double *dZERO ;
 
+		// Crashes happen when non-grid ranks call functions involving the BLACS context, such as Cblacs_pnum,
+		// so we have our own version. 
+		// Cblacs_pnum is better to use when possible because it checks negative values and all.
+		inline int peigen_pnum(int prow, int pcol)
+		{
+			return prow * grid_cols + pcol;
+		}
 
 		inline void init(int numtasks)
 		{
@@ -164,7 +171,9 @@ namespace peigen
 			delete dZERO;
 			delete dONE;
 
-			Cblacs_gridexit(ctxt);
+			// Crashes happen when a non-grid rank calls a function involving the context.
+			if (active)
+				Cblacs_gridexit(ctxt);
 			Cblacs_exit(1 /*program will continue, call MPI::finalize after*/);
 		}
 
