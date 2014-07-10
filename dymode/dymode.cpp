@@ -493,7 +493,7 @@ int main(int argc, char* argv[])
 							BLACS::COMM_ACTIVE.Send(im.data(), im.cols(), MPI::DOUBLE, ownerprev, BLACS::myrank);
 
 							weights.local_matrix.row(l).real() = re;
-							weights.local_matrix.row(l).imag() = solver.solution.local_matrix.row(l);
+							weights.local_matrix.row(l).imag() = - solver.solution.local_matrix.row(l);
 						}
 					}
 					++k;
@@ -514,14 +514,6 @@ int main(int argc, char* argv[])
 		if (ROOT)
 		  cout << "\tDONE" << endl;
 
-		/*
-		if (ROOT)
-		{
-		cout << "HERE COME the solution" << endl << flush;
-		}
-		cout << weights << endl;
-		*/
-
 
 		/////**************************************************************************************************/
 		/////*------------------------------      /DO A LINEAR SYSTEM SOLVE      -----------------------------*/
@@ -539,7 +531,7 @@ int main(int argc, char* argv[])
 
 		if (ROOT)
                   cout << "\tDONE" << endl;
-
+		
 		if (ROOT)
                   cout << "Scaling the modes...          ";
 		Modes.ColScale(weights);

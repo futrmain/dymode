@@ -160,37 +160,22 @@ namespace peigen
 		*/
 		SharedMatrix<MatrixType> & ColScale(SharedMatrix<MatrixType> factors)
 		{
-			assert((factors.cols() == 1 && factors.rows() == ncols) || (factors.rows() == 1 && factors.cols() == ncols) && "The size of factors does not match the number of columns in the global matrix.");
+			assert(factors.cols() == 1 && factors.rows() == ncols && "The size of factors does not match the number of columns in the global matrix.");
 
-			// Make sure factors is a vertical vector
-			if (factors.cols() > 1)
-				factors.transpose();
-
-
-			// Step 1: Form D := diag(factors)
-			// Replicate factors horizontally
-			SharedMatrix<MatrixType> D = factors * SharedMatrix<MatrixType>(1, ncols, 'o', 1, ncblock);
-
-			// Nullify non-diagonal coefficients
-			for (int i = 0; i < D.local_matrix.rows(); ++i)
+			factors.gather(0);		
+			MatrixType factors_global(factors.rows(), 1);
+			if (BLACS::myrank == 0)
 			{
-				const int gi = BLACS::indxl2g(i, D.rblock(), BLACS::grid_rows, BLACS::myrow);
-				for (int j = 0; j < D.local_matrix.cols(); ++j)
-				{
-					const int gj = BLACS::indxl2g(j, D.cblock(), BLACS::grid_cols, BLACS::mycol);
-
-					if (gi != gj)
-					{
-						D.local_matrix(i, j) = 0;
-					}
-				}
+				factors_global = factors.global_matrix;
+			}
+			BLACS::COMM_ACTIVE.Bcast(factors_global.data(), factors_global.rows(), MPI_type<MatrixType::Scalar>(), 0);
+			if (BLACS::myrank == 0)
+			{
+				factors.global_matrix.resize(0, 0);
 			}
 
-			// Step 2: Multiply *this by D
-			*this = *this * D;
-
 			//std::cout << "DIAGONAL MATRIX ***~~~****~~~****~~" << std::endl << *this << std::endl << std::endl;
-			return *this;
+			return ColScale(factors_global);
 		}
 
 
