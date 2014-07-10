@@ -4,6 +4,7 @@ namespace peigen
 	using namespace Eigen;	
 	using namespace std;
 }
+#include "MPI_type.h"
 #include "PBLAS.h"
 #include "BLACS.h"
 #include "SharedMatrix.h"
