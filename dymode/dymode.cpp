@@ -316,11 +316,9 @@ int main(int argc, char* argv[])
 			cout << endl << "         EIGEN PROBLEM        " << endl << "******************************" << endl;
 		BLACS::COMM_ACTIVE.Barrier(); // For printing purposes
 
-		if (ROOT)
-			cout << "Calling ScaLAPACK" << endl << "=================" << endl;
 		prof.tic("EigenProblem");
 
-		ScaEigenSolver<MatrixXd> eig(B, true, opt.eigSolver);
+		ScaEigenSolver<MatrixXd> eig(B, true, opt.eigSolver, opt.dispResiduals);
 
 		if (opt.dispResiduals)
 		{
@@ -625,7 +623,7 @@ int main(int argc, char* argv[])
 			{
 				s << spectrum << '\n';
 				s.close();
-				cout << "\tDONE." << endl;
+				cout << "\tDONE" << endl;
 			}
 			else
 			{
@@ -639,7 +637,7 @@ int main(int argc, char* argv[])
 			{
 				l << lambdas << '\n';
 				l.close();
-				cout << "\tDONE." << endl;
+				cout << "\tDONE" << endl;
 			}
 			else
 			{
