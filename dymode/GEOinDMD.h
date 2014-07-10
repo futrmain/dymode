@@ -40,134 +40,155 @@ public:
 
 	void parse(const string& geofile)
 	{
-		char line[81], subLine[81], nameline[81];
-		line[80] = '\0'; subLine[80] = '\0'; nameline[80] = '\0';
+		bool parse_success = false;
+
+		if (geofile != "")
+		{
 #ifdef _WIN32
-		ifstream input = ifstream(geofile.c_str(), ios::in | ios::binary);
+			ifstream input = ifstream(geofile.c_str(), ios::in | ios::binary);
 #else
-		ifstream input(geofile.c_str(), ios::in);
+			ifstream input(geofile.c_str(), ios::in);
 #endif
-
-		int lineRead;
-
-		//FIXME should switch back to no-geo file behavior instead of crashing, especially if it occurs after expensive computation...
-		assert(!input.fail() && "COULD NOT OPEN THE GEOMETRY FILE PROVIDED");
-
-		// Skip the first 3 lines
-		input.read(line, 80);
-		input.read(line, 80);
-		input.read(line, 80);
-		
-		bool NodeIdsListed, ElementIdsListed;
-		// Read the node id and element id lines.
-		input.read(line, 80);
-		std::sscanf(line, " %*s %*s %s", subLine);
-		
-		if (strncmp(subLine, "given", 5) == 0)
-		{
-			NodeIdsListed = true;
-		}
-		else if (strncmp(subLine, "ignore", 6) == 0)
-		{
-			NodeIdsListed = true;
-		}
-		else
-		{
-			NodeIdsListed = false;
-		}
-
-		input.read(line, 80);
-		std::sscanf(line, " %*s %*s %s", subLine);
-		
-		if (strncmp(subLine, "given", 5) == 0)
-		{
-			ElementIdsListed = true;
-		}
-		else if (strncmp(subLine, "ignore", 6) == 0)
-		{
-			ElementIdsListed = true;
-		}
-		else
-		{
-			ElementIdsListed = false;
-		}
-
-		input.read(line, 80); // "extents" or "part"
-		if (strncmp(line, "extents", 7) == 0)
-		{
-			// Skipping the extents.
-			//input.seekg(6 * sizeof(float), ios::cur);
-			input.ignore(6 * sizeof(float)); // "part"
-			input.read(line, 80); // "part"
-		}
-
-		while (input.good() && strncmp(line, "part", 4) == 0)
-		{
-			gold_part curr_part;
-			input.read((char*)&(curr_part.number), sizeof(int));
-
-			assert(curr_part.number >= 0 && curr_part.number < 65536 && "The part numer found in the geometry file is not correct.");
-
-			input.read(line, 80); // part description line
-
-			input.read(line, 80); // coordinates
-			assert(strncmp(line, "block", 5) && "Block syntax is not supported.");
-			assert(!strncmp(line, "coordinates", 11) && "Expected to find 'coordinates' in geo file");
-
-			int nel, nnodes;
-			string tel;
-
-			input.read((char*)(&nnodes), sizeof(int)); // Number of nodes
-
-			if (NodeIdsListed)
-			{	// Skip element IDs
-				input.ignore(nnodes * sizeof(int));
-			}
-			input.ignore(3 * nnodes * sizeof(float)); // Skip node coordinates
-
-			input.read(line, 80); // element type
-			std::sscanf(line, " %s", subLine);
-			auto it = np.find(subLine);
-			while (input.good() && it != np.end())
+			if (!input.fail())
 			{
-				int npoints; 
-				npoints = it->second;
+				char line[81], subLine[81], nameline[81];
+				line[80] = '\0'; subLine[80] = '\0'; nameline[80] = '\0';
+				int lineRead;
 
-				curr_part.telements.push_back(string(subLine));
+				// Skip the first 3 lines
+				input.read(line, 80);
+				input.read(line, 80);
+				input.read(line, 80);
 
-				input.read((char*)(&nel), sizeof(int)); // Number of elements
-				curr_part.nelements.push_back(nel);
+				bool NodeIdsListed, ElementIdsListed;
+				// Read the node id and element id lines.
+				input.read(line, 80);
+				std::sscanf(line, " %*s %*s %s", subLine);
 
-				if (ElementIdsListed)
-				{	// Skip element IDs
-					input.ignore(nel * sizeof(int));
-				}
-				if (npoints > 0)
+				if (strncmp(subLine, "given", 5) == 0)
 				{
-					input.ignore(npoints * nel * sizeof(int)); // skip elements
+					NodeIdsListed = true;
 				}
-				else // n-sided hell
+				else if (strncmp(subLine, "ignore", 6) == 0)
 				{
-					// read the number of points for each element
-					int* nnp = new int[nel];
-					input.read((char*)nnp, nel * sizeof(int));
+					NodeIdsListed = true;
+				}
+				else
+				{
+					NodeIdsListed = false;
+				}
 
-					int total = 0;
-					for (int k = 0; k < nel; ++k)
-					{
-						total += nnp[k];
+				input.read(line, 80);
+				std::sscanf(line, " %*s %*s %s", subLine);
+
+				if (strncmp(subLine, "given", 5) == 0)
+				{
+					ElementIdsListed = true;
+				}
+				else if (strncmp(subLine, "ignore", 6) == 0)
+				{
+					ElementIdsListed = true;
+				}
+				else
+				{
+					ElementIdsListed = false;
+				}
+
+				input.read(line, 80); // "extents" or "part"
+				if (strncmp(line, "extents", 7) == 0)
+				{
+					// Skipping the extents.
+					//input.seekg(6 * sizeof(float), ios::cur);
+					input.ignore(6 * sizeof(float)); // "part"
+					input.read(line, 80); // "part"
+				}
+
+				while (input.good() && strncmp(line, "part", 4) == 0)
+				{
+					gold_part curr_part;
+					input.read((char*)&(curr_part.number), sizeof(int));
+
+					assert(curr_part.number >= 0 && curr_part.number < 65536 && "The part numer found in the geometry file is not correct.");
+
+					input.read(line, 80); // part description line
+
+					input.read(line, 80); // coordinates
+					assert(strncmp(line, "block", 5) && "Block syntax is not supported.");
+					assert(!strncmp(line, "coordinates", 11) && "Expected to find 'coordinates' in geo file");
+
+					int nel, nnodes;
+					string tel;
+
+					input.read((char*)(&nnodes), sizeof(int)); // Number of nodes
+
+					if (NodeIdsListed)
+					{	// Skip element IDs
+						input.ignore(nnodes * sizeof(int));
 					}
-					input.ignore(total * sizeof(int)); // skip elements
-					delete[] nnp;
-				}
+					input.ignore(3 * nnodes * sizeof(float)); // Skip node coordinates
 
-				input.read(line, 80); // element type or "part"
-				std::sscanf(line, " %s", subLine);
-				it = np.find(subLine);
+					input.read(line, 80); // element type
+					std::sscanf(line, " %s", subLine);
+					auto it = np.find(subLine);
+					while (input.good() && it != np.end())
+					{
+						int npoints;
+						npoints = it->second;
+
+						curr_part.telements.push_back(string(subLine));
+
+						input.read((char*)(&nel), sizeof(int)); // Number of elements
+						curr_part.nelements.push_back(nel);
+
+						if (ElementIdsListed)
+						{	// Skip element IDs
+							input.ignore(nel * sizeof(int));
+						}
+						if (npoints > 0)
+						{
+							input.ignore(npoints * nel * sizeof(int)); // skip elements
+						}
+						else // n-sided hell
+						{
+							// read the number of points for each element
+							int* nnp = new int[nel];
+							input.read((char*)nnp, nel * sizeof(int));
+
+							int total = 0;
+							for (int k = 0; k < nel; ++k)
+							{
+								total += nnp[k];
+							}
+							input.ignore(total * sizeof(int)); // skip elements
+							delete[] nnp;
+						}
+
+						input.read(line, 80); // element type or "part"
+						std::sscanf(line, " %s", subLine);
+						it = np.find(subLine);
+					}
+					parts.push_back(curr_part);
+				}
+				input.close();
+				parse_success = true;
 			}
+			else
+			{
+				if (BLACS::myrank == 0)
+					cout << "Error while opening .geo file " << geofile << ", switching to no .geo file specified." << endl;
+			}
+		}
+
+		if (parse_success == false)
+		{
+			//Create a simple dummy structure
+			gold_part curr_part;
+			curr_part.number = 1;
+			curr_part.nelements.push_back(-1);
+			curr_part.telements.push_back("hex8");
+
 			parts.push_back(curr_part);
 		}
-		input.close();
 	};
 };
 
