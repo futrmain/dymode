@@ -1,6 +1,6 @@
 clear all
 
-check_only = 0;
+check_only = 1;
 
 dymodeexec = 'D:\Dymode_intel\x64\Release\Dymode_intel.exe';
 inputpath = 'D:\DMD\channeldata';

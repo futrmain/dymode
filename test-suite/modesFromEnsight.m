@@ -17,7 +17,7 @@ filelist = dir( path );
 %Parse filenames in directory
 n = 0;
 for f = 1:size(filelist,1)
-    [i, ~, e] = sscanf(filelist(f).name, ['mode%06i.' var{1} '.%*s']);
+    [i, ~, e] = sscanf(filelist(f).name, ['mode%06d.' var{1} '.%*s']);
     if isempty(e)
         n = n + 1;
         num(n) = i; 
@@ -34,9 +34,9 @@ for m = 0:length(num)-1
     i = 1;
     for v = 1:length(var)
         if ~strncmp('null', var{v}, 4)
-            filename = sprintf('%s\\mode%06i.%s.abs', path, m, var{v});
+            filename = sprintf('%s\\mode%06d.%s.abs', path, m, var{v});
             A((i-1)*327680+1:i*327680,m+1) = readEnsight_variable(filename, {327680});
-            filename = sprintf('%s\\mode%06i.%s.ang', path, m, var{v});
+            filename = sprintf('%s\\mode%06d.%s.ang', path, m, var{v});
             P((i-1)*327680+1:i*327680,m+1) = readEnsight_variable(filename, {327680});
             
             i = i + 1;
