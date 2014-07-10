@@ -539,7 +539,7 @@ int main(int argc, char* argv[])
 
 		if (ROOT)
                   cout << "\tDONE" << endl;
-
+		
 		if (ROOT)
                   cout << "Scaling the modes...          ";
 		Modes.ColScale(weights);
