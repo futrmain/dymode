@@ -1,8 +1,8 @@
 clear all
 
-check_only = 1;
+check_only = 0;
 
-dymodeexec = 'D:\Dymode_intel\x64\Release\Dymode_intel.exe';
+dymodeexec = 'D:\Dymode_intel\x64\YDEBUG\Dymode_intel.exe';
 inputpath = 'D:\DMD\channeldata';
 fileroot = 'Re350_oscillating';
 dataset = '/snapshots_T';

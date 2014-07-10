@@ -434,7 +434,7 @@ int main(int argc, char* argv[])
 			double r_lin = solver.residual(System, rhs);
 			prof.toc("residualLin");
 			if (ROOT)
-				cout << "Residual from the linear system: " << r_lin << endl << flush;
+				cout << "Residual from the linear system: \t" << r_lin << endl << flush;
 			std::cout.copyfmt(std::ios(NULL));
 		}
 
@@ -442,7 +442,7 @@ int main(int argc, char* argv[])
 		//cout << BLACS::myrank << ", solution: " << solver.solution.local_matrix << endl << flush;
 		
 		if (ROOT)
-		  cout << "Reconstructing the weights... ";
+		  cout << "Reconstructing the weights...     ";
 
 		prof.tic("FormWeights");
 		// Reconstitute the solution to the original system
@@ -525,7 +525,7 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 
 		if (ROOT)
-                  cout << "Creating the modes...         ";
+                  cout << "Creating the modes...             ";
 
 		SharedMatrix<MatrixXcd> Modes = svd.matrixU.cast<std::complex<double> >() * X;
 
@@ -533,7 +533,7 @@ int main(int argc, char* argv[])
                   cout << "\tDONE" << endl;
 		
 		if (ROOT)
-                  cout << "Scaling the modes...          ";
+                  cout << "Scaling the modes...              ";
 		Modes.ColScale(weights);
 		if (ROOT)
                   cout << "\tDONE" << endl;
@@ -543,22 +543,34 @@ int main(int argc, char* argv[])
 			cout.precision(std::numeric_limits< double >::digits10);
 			prof.tic("residualLin");
 
-			SharedMatrix<MatrixXcd> Vandermonde = vander<MatrixXcd>(lambdas, Modes.cols(), Modes.rblock(), Modes.cblock());
+			SharedMatrix<MatrixXcd> Vandermonde = vander<MatrixXcd>(lambdas, Modes.cols() + 1, Modes.rblock(), Modes.cblock());
 			//cout << Vandermonde << endl;
 
-			SharedMatrix<MatrixXcd> reconstruct = snaps.cast<complex<double>>().block(0, 0, snaps.rows(), snaps.cols() - 1);
+			SharedMatrix<MatrixXcd> reconstruct = snaps.cast<complex<double>>();
 			reconstruct.pgemm(1., Modes, Vandermonde, -1.);
 			//cout << reconstruct << endl;
-
+			
+			reconstruct.block(0, 0, snaps.rows(), snaps.cols() - 1);
 			double r_loc = (reconstruct.localBlock().rows() * reconstruct.localBlock().cols()) > 0
 			  ? reconstruct.localBlock().cwiseAbs().maxCoeff()
 			  : -1;
 			double r;
 			BLACS::COMM_ACTIVE.Reduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
-			prof.toc("residualLin");
 
 			if (ROOT)
-				cout << "Residual from Modes:            " << r << endl;
+				cout << "Residual from Modes:                \t" << r << endl;
+
+			reconstruct.block(0, snaps.cols() - 1, snaps.rows(), 1);
+			r_loc = (reconstruct.localBlock().rows() * reconstruct.localBlock().cols()) > 0
+				? reconstruct.localBlock().cwiseAbs().maxCoeff()
+				: -1;
+			
+			BLACS::COMM_ACTIVE.Reduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
+			if (ROOT)
+				cout << "Residual from Modes (last snapshot): \t" << r << endl;
+			prof.toc("residualLin");
+
+			
 			std::cout.copyfmt(std::ios(NULL));
 		}
 
