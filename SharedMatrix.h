@@ -168,7 +168,7 @@ namespace peigen
 			{
 				factors_global = factors.global_matrix;
 			}
-			BLACS::COMM_ACTIVE.Bcast(factors_global.data(), factors_global.rows(), MPI_type<MatrixType::Scalar>(), 0);
+			BLACS::COMM_ACTIVE.Bcast(factors_global.data(), factors_global.rows(), MPI_type<typename MatrixType::Scalar>(), 0);
 			if (BLACS::myrank == 0)
 			{
 				factors.global_matrix.resize(0, 0);
