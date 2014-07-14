@@ -14,6 +14,8 @@ addParameter(p,'nfiles',1,@isnumeric);
 addParameter(p,'stride',1,@isnumeric);
 addParameter(p,'variables','u',@ischar);
 addParameter(p,'modes',1,@isnumeric);
+addParameter(p,'singulars',0,@isnumeric);
+addParameter(p,'residuals','false',@ischar);
 
 parse(p,filename,outdir, varargin{:});
 
@@ -24,11 +26,13 @@ snaps = hdf2snaps( pathstr, name, p.Results.nfiles, p.Results.stride, p.Results.
 
 
 %% Compute DMD
-[ eigenvalues, modes, energy, Sig ] = dmd_core(snaps);
+[ eigenvalues, modes, energy, Sig ] = dmd_core(snaps, ...
+                                        'residuals', p.Results.residuals, ...
+                                        'singulars', p.Results.singulars);
 
 %% Save data
 variables = strsplit(p.Results.variables, ',');
-success = mkdir(p.Results.outdir);
+[success, mess, messid] = mkdir(p.Results.outdir);
 if success == 1
     % Save light data
     % Not implemented yet

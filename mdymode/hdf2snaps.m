@@ -23,7 +23,7 @@ coffset = 1;
 for f = 0+1:n+0
     filename = sprintf('%s\\%s%04i.h5', path, fileroot, f);
     disp(filename)
-    filedata = h5read(filename, dataset, [1 1], [327680 inf]);
+    filedata = h5read(filename, dataset, [1 1], [327680 71]);
     snaps = [snaps, filedata];
     
 %     info = h5info(filename, dataset);

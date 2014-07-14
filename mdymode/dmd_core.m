@@ -1,10 +1,33 @@
-function [ eigenvalues, modes, energy, Sig ] = dmd_core( S )
+function [ eigenvalues, modes, energy, Sig ] = dmd_core( S, varargin )
 %DMD_CORE Computes the DMD of snapshot matrix S
 %   Detailed explanation goes here
 
+
+%% Parse input
+p = inputParser;
+
+addRequired(p,'snaps');
+addParameter(p,'singulars',0,@isnumeric);
+addParameter(p,'residuals','false',@ischar);
+
+parse(p,S, varargin{:});
+
+
 %% SVD
 [U, Sig, V] = svd(S(:,1:end-1), 0);
+
+if strcmp(p.Results.residuals, 'true') 
+    r = max(max(U*Sig*V' - S(:,1:end-1)));
+    disp (['Residual from SVD: ' num2str(r)]);
+end
+
 Sig = diag(Sig);
+
+NSING = min(length(Sig), p.Results.singulars);
+if NSING > 0
+    disp (['First' num2str(NSING) ' singular values: ']);
+    disp (Sig(1:NSING));
+end
 
 
 %% Invert Sig
@@ -21,6 +44,11 @@ B = U' * S(:, 2:end) * V * diag(Sigp);
 [X, eigenvalues] =  eig(B);
 eigenvalues = diag(eigenvalues);
 
+if strcmp(p.Results.residuals, 'true') 
+    r = max(max(abs(B*X - X*diag(eigenvalues))));
+    disp (['Residual from eigen problem: ' num2str(r)]);
+end
+
 %% Weights
 w = X\(U'*S(:,1));
 
@@ -29,6 +57,10 @@ w = X\(U'*S(:,1));
 modes = U * X;
 modes = modes * diag(w);
 
+if strcmp(p.Results.residuals, 'true') 
+    r = max(max(abs(modes*fliplr(vander(eigenvalues)) - S(:, 1:end-1))));
+    disp (['Residual from modes: ' num2str(r)]);
+end
 % R = modes * fliplr(vander(eigenvalues)) - S(:,1:end-1);
 % disp(max(max(abs(R))))
 
