@@ -90,7 +90,7 @@ end
 %% Compute energy
 normsqr_modes = sum(modes .* conj(modes), 1);
 
-if p.Results.sorting > 0
+if p.Results.sorting >= 0
     
     % Use mode energy at specified time step 
     energ_compensate = eigenvalues .^ p.Results.sorting;
@@ -98,7 +98,7 @@ if p.Results.sorting > 0
 elseif p.Results.sorting == -10
     
     % Use mode energy averaged over sampling period
-    energ_compensate = eigenvalues;
+    energ_compensate = abs(eigenvalues);
     energ_compensate(abs(eigenvalues) < 1 | abs(eigenvalues) > 1) ...
         =  (1 - abs(eigenvalues(abs(eigenvalues) < 1 | abs(eigenvalues) > 1)) .^ (2 * length(eigenvalues))) ...
         ./ ( (1 - abs(eigenvalues(abs(eigenvalues) < 1 | abs(eigenvalues) > 1)) .^ 2) * length(eigenvalues) );
@@ -106,7 +106,7 @@ elseif p.Results.sorting == -10
 elseif p.Results.sorting == -11
     
     % Use median mode energy
-    energ_compensate = eigenvalues .^ (0.5 * (length(eigenvalues) - 1));
+    energ_compensate = abs(eigenvalues) .^ (0.5 * (length(eigenvalues) - 1));
 
 end
 
