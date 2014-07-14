@@ -1,6 +1,27 @@
 function [ eigenvalues, modes, energy, Sig ] = dmd_core( S, varargin )
 %DMD_CORE Computes the DMD of snapshot matrix S
-%   Detailed explanation goes here
+%
+%   dmd_core(S, 'singulars', 5, 'residual', 'true');
+%
+%   INPUT
+%   S               Snapshot matrix. Must have at least 2 columns.
+%   
+%   OPTION      DEFAULT     DESCRIPTION
+%   singulars   0           Number of singular values to display.
+%   residual    'false'     Setting 'true' displays the residuals.
+%   sorting     -11         Way to sort the modes:
+%                           >= 0: Use the modes' energies at specified
+%                                 timestep;
+%                           -10:  Use the modes' mean energy over the sampled
+%                                 period;
+%                           -11:  Use the modes' median energy over the
+%                                 sampled period.
+%
+%   OUTPUT
+%   eigenvalues     Eigenvalues associated with the modes.
+%   modes           Matrix of modes, columns are sorted by mode energy.
+%   energy          Vector containing the energy of each mode.
+%   Sig             Singular values.
 
 
 %% Parse input
@@ -9,6 +30,7 @@ p = inputParser;
 addRequired(p,'snaps');
 addParameter(p,'singulars',0,@isnumeric);
 addParameter(p,'residuals','false',@ischar);
+addParameter(p,'sorting',-11,@isnumeric);
 
 parse(p,S, varargin{:});
 
@@ -26,7 +48,7 @@ Sig = diag(Sig);
 NSING = min(length(Sig), p.Results.singulars);
 if NSING > 0
     disp (['First' num2str(NSING) ' singular values: ']);
-    disp (Sig(1:NSING));
+    disp (Sig(1:NSING)');
 end
 
 
@@ -50,7 +72,7 @@ if strcmp(p.Results.residuals, 'true')
 end
 
 %% Weights
-w = X\(U'*S(:,1));
+w = X\(U'*S(:, 1));
 
 
 %% Create the modes
@@ -66,8 +88,29 @@ end
 
 
 %% Compute energy
-energy = sum(abs(modes).^2, 1);
+normsqr_modes = sum(modes .* conj(modes), 1);
 
+if p.Results.sorting > 0
+    
+    % Use mode energy at specified time step 
+    energ_compensate = eigenvalues .^ p.Results.sorting;
+    
+elseif p.Results.sorting == -10
+    
+    % Use mode energy averaged over sampling period
+    energ_compensate = eigenvalues;
+    energ_compensate(abs(eigenvalues) < 1 | abs(eigenvalues) > 1) ...
+        =  (1 - abs(eigenvalues(abs(eigenvalues) < 1 | abs(eigenvalues) > 1)) .^ (2 * length(eigenvalues))) ...
+        ./ ( (1 - abs(eigenvalues(abs(eigenvalues) < 1 | abs(eigenvalues) > 1)) .^ 2) * length(eigenvalues) );
+
+elseif p.Results.sorting == -11
+    
+    % Use median mode energy
+    energ_compensate = eigenvalues .^ (0.5 * (length(eigenvalues) - 1));
+
+end
+
+energy = normsqr_modes .* energ_compensate';
 
 % %% Get rid of half of the conjugate pairs
 % modes = modes(:, imag(eigenvalues) >= 0);

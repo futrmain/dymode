@@ -1,6 +1,30 @@
 function [ eigenvalues, energy, modes, Sig ] = mdymode( filename, outdir, varargin )
-%PRINT2H5 Summary of this function goes here
-%   Detailed explanation goes here
+%MDYMODE Matlab equivalent to dymode
+%
+%   mdymode('/scratch/my_file', '/scratch/results/', 'variables', 'u,null,null,p');
+%
+%   INPUT
+%   filename        Path and rootname of the HDF5 files containing the snapshot matrix.
+%   outdir          Path to the directory where to save results.
+%   
+%   OPTION      DEFAULT         DESCRIPTION
+%   geo                         Ensight geometry file.
+%   datasert    'snapshots_T'   Dataset name inside the HDF5 files.
+%   nfiles      1               Number of HDF5 files to read from.
+%   stride      1               Stride between the snapshots to read from
+%                               on disk.
+%   variables   'u'             Name of the variables contained inside the
+%                               data on disk, seprated by commas. Use 'null' 
+%                               to not read a variable from disk.
+%   modes       1               Number of modes to save in Ensight format.
+%   singulars   0               Number of singular values to display.
+%   residuals   'false'         Set to 'true' to display residuals.
+%
+%   OUTPUT
+%   eigenvalues     Eigenvalues associated with the modes.
+%   modes           Matrix of modes.
+%   energy          Vector containing the energy of each mode.
+%   Sig             Singular values.
 
 %% Parse input
 p = inputParser;
@@ -16,6 +40,7 @@ addParameter(p,'variables','u',@ischar);
 addParameter(p,'modes',1,@isnumeric);
 addParameter(p,'singulars',0,@isnumeric);
 addParameter(p,'residuals','false',@ischar);
+addParameter(p,'sorting',-11,@isnumeric);
 
 parse(p,filename,outdir, varargin{:});
 
@@ -27,66 +52,56 @@ snaps = hdf2snaps( pathstr, name, p.Results.nfiles, p.Results.stride, p.Results.
 
 %% Compute DMD
 [ eigenvalues, modes, energy, Sig ] = dmd_core(snaps, ...
-                                        'residuals', p.Results.residuals, ...
-                                        'singulars', p.Results.singulars);
+    'residuals', p.Results.residuals, ...
+    'singulars', p.Results.singulars, ...
+    'sorting',   p.Results.sorting);
 
 %% Save data
 variables = strsplit(p.Results.variables, ',');
-[success, mess, messid] = mkdir(p.Results.outdir);
+[success, ~, ~] = mkdir(p.Results.outdir);
 if success == 1
     % Save light data
     % Not implemented yet
     
     % Save modes
-    m = 1;
-    msaved = 0;
     variable_file_list = '';
     
-    while msaved < p.Results.modes && m <= size(modes, 2)
-        while eigenvalues(m) < 0 && m < length(eigenvalues)
-            m = m + 1;
-        end
-        if eigenvalues(m) >= 0
-            for v = 1:length(variables)
-                if strncmp(variables{v}, 'null', 4) == false
-                    disp(['Writing mode' num2str(msaved)]);
-                    
-                    varfile = [p.Results.outdir '\mode' num2str(msaved, '%06i') '.' variables{v} '.abs']; 
-                    fid = fopen(varfile, 'w+');
-                    
-                    writeEnsightHeader(fid, 'Module', msaved, variables{v});
-                    % FIXME This should only print the part of modes
-                    % corresponding to the right variable
-                    fwrite(fid, abs(modes(:, m)), 'single');
-                    
-                    fclose(fid);
-                    variable_file_list = [variable_file_list ...
-                        'scalar per element: ' ...
-                        variables{v} num2str(msaved) 'abs ' ...
-                        'mode' num2str(msaved, '%06i') '.' variables{v} '.abs' sprintf('\n')];
-                    
-                    varfile = [p.Results.outdir '/mode' num2str(msaved, '%06i') '.' variables{v} '.ang']; 
-                    fid = fopen(varfile, 'w+');
-                    
-                    writeEnsightHeader(fid, 'Angle', msaved, variables{v});
-                    fwrite(fid, angle(modes(:, m)), 'single');
-                    
-                    fclose(fid);
-                    variable_file_list = [variable_file_list ...
-                        'scalar per element: ' ...
-                        variables{v} num2str(msaved) 'ang ' ...
-                        'mode' num2str(msaved, '%06i') '.' variables{v} '.ang' sprintf('\n')];
-                    
-                    msaved = msaved + 1;
-                end
+    mod_pos = modes(:, imag(eigenvalues) >= 0);
+    NMODES = min(size(mod_pos, 2), p.Results.modes);
+    for k = 1:NMODES
+        disp(['Writing mode' num2str(k-1)]);
+        for v = 1:length(variables)
+            if strncmp(variables{v}, 'null', 4) == false
+                varfile = [p.Results.outdir '\mode' num2str(k-1, '%06i') '.' variables{v} '.abs'];
+                fid = fopen(varfile, 'w+');
+                
+                writeEnsightHeader(fid, 'Module', k-1, variables{v});
+                % FIXME This should only print the part of modes
+                % corresponding to the right variable
+                fwrite(fid, abs(mod_pos(:, k)), 'single');
+                
+                fclose(fid);
+                variable_file_list = [variable_file_list ...
+                    'scalar per element: ' ...
+                    variables{v} num2str(k-1) 'abs ' ...
+                    'mode' num2str(k-1, '%06i') '.' variables{v} '.abs' sprintf('\n')];
+                
+                varfile = [p.Results.outdir '/mode' num2str(k-1, '%06i') '.' variables{v} '.ang'];
+                fid = fopen(varfile, 'w+');
+                
+                writeEnsightHeader(fid, 'Angle', k-1, variables{v});
+                fwrite(fid, angle(mod_pos(:, k)), 'single');
+                
+                fclose(fid);
+                variable_file_list = [variable_file_list ...
+                    'scalar per element: ' ...
+                    variables{v} num2str(k-1) 'ang ' ...
+                    'mode' num2str(k-1, '%06i') '.' variables{v} '.ang' sprintf('\n')];
             end
-        else
-            m = m + 1;
         end
-        
     end
     
-    fid = fopen( [p.Results.outdir '/dmd.case'], 'w+' ); 
+    fid = fopen( [p.Results.outdir '/dmd.case'], 'w+' );
     
     fprintf(fid, 'FORMAT\n');
     fprintf(fid, 'type: ensight gold\n');
@@ -101,10 +116,10 @@ if success == 1
     fprintf(fid, 'filename increment: 1 \n');
     fprintf(fid, 'time values: \n');
     fprintf(fid, '0\n');
-        
+    
     fclose(fid);
 else
-    error(['Error, could not create ' p.Results.outdir]); 
+    error(['Error, could not create ' p.Results.outdir]);
 end
 
 
