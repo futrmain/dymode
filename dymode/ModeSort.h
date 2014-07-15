@@ -103,12 +103,22 @@ class ModeSort
 public:
 	MatrixXi orderedIdx;
 
+	ModeSort(){};
 	ModeSort(SharedMatrix<MatrixType>& Modes, MatrixType& eigenvalues, MatrixType& norm, MatrixType& singulars, sort_method& method, int NMAX)
 	{
-
+		orderedIdx = getOrderedIdx(SharedMatrix<MatrixType>& Modes, MatrixType& eigenvalues, MatrixType& norm, MatrixType& singulars, sort_method& method, int NMAX);
 	}
 
-	MatrixXi energy_sort(MatrixType& eigenvalues, MatrixType& norm, sort_method& method, int NMAX)
+	MatrixXi getOrderedIdx(SharedMatrix<MatrixType>& Modes, MatrixType& eigenvalues, MatrixType& norm, MatrixType& singulars, sort_method& method, int NMAX)
+	{
+		if (method.stype == energy)
+		{
+			return energy_sort(eigenvalues, norm, method, NMAX);
+		}
+		// else... implement other types of sorting
+	}
+
+	MatrixXi energy_sort(const MatrixType& eigenvalues, const MatrixType& norm, const sort_method& method, const int& NMAX)
 	{
 		vector<s<MatrixType::Scalar>, method.order> v;
 
