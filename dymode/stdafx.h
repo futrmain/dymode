@@ -34,6 +34,7 @@ using namespace peigen;
 #include "ColumnNorm.h"
 #include "H5inDMD.h"
 #include "GEOinDMD.h"
+#include "ModeSort.h"
 #include "options.h"
 
 using namespace phdfp;

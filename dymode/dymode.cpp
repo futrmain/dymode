@@ -28,11 +28,14 @@ using namespace peigen;
 #include "ColumnSquaredNorm.h"
 #include "H5inDMD.h"
 #include "GEOinDMD.h"
+#include "ModeSort.h"
 #include "options.h"
 
 using namespace phdfp;
 
 #endif
+
+
 
 void set80line(string& s)
 {
