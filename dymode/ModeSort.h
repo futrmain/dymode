@@ -73,10 +73,92 @@ public:
 	}
 };
 
+// General template, implements ascending order by default
+template <typename scalar, sort_order order>
+struct s
+{
+	scalar d;
+	int index;
+	bool operator < (const struct s &other) const 
+	{
+		return d < other.d;
+	}
+};
+
+// Specialization for descending order
+template <typename scalar>
+struct s<scalar, descend>
+{
+	scalar d;
+	int index;
+	bool operator < (const struct s &other) const 
+	{
+		return d > other.d;
+	}
+};
+
+template<typename MatrixType>
 class ModeSort
 {
 public:
+	MatrixXi orderedIdx;
 
+	ModeSort(SharedMatrix<MatrixType>& Modes, MatrixType& eigenvalues, MatrixType& norm, MatrixType& singulars, sort_method& method, int NMAX)
+	{
+
+	}
+
+	MatrixXi energy_sort(MatrixType& eigenvalues, MatrixType& norm, sort_method& method, int NMAX)
+	{
+		vector<s<MatrixType::Scalar>, method.order> v;
+
+		for (int i = 0; i < norm.cols(); ++i) 
+		{
+			s s_temp;
+			if (eigenvalues(0, i).imag() < 0)
+			{
+				// Should we discard the mode ?
+				if (method.conjugates == false)
+					s_temp.d = -1;
+				else
+					s_temp.d = norm(0, i);
+			}
+			else
+			{
+				s_temp.d = norm(0, i);
+			}
+
+			MatrixType::Scalar correction;
+			switch (method.energy_ref)
+			{
+			case -11:	// median
+				correction = std::pow(eigenvalue(0, i).abs(), eigenvalues.cols() / 2);
+				break;
+			case -10:	// mean
+				if (eigenvalue(0, i).abs() == 1)
+					correction = 1;
+				else
+					correction = (1 - std::pow(eigenvalue(0, i).abs(), eigenvalues.cols())) / (eigenvalues.cols() * (1 - eigenvalue(0, i).abs()));
+				break;
+			default:	// snapshot number
+				correction = std::pow(eigenvalue(0, i).abs(), method.energy_ref);
+			}
+			s_temp.d = s_temp.d * correction;
+			s_temp.index = i;
+			v.push_back(s);
+		}
+
+
+		std::partial_sort(v.begin(), v.begin() + NMAX, v.end());
+		
+		MatrixXi indices(1, NMAX);
+		for(int i = 0; i < NMAX; ++i)
+		{
+			indices(0, i) = v[i].index;
+		}
+
+		return indices;
+	}
 };
 
 #endif // MODE_SORT_H
