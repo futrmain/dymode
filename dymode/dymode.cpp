@@ -85,7 +85,10 @@ void gold_print_values(MatrixXf values, geofilereader geo, FILE *pFile)
 			stext.clear();//clear any bits set
 			stext.str(std::string());
 
-			fwrite(values.data() + offset, sizeof(float), (*it_part).nelements[k], pFile);
+			int nelems = (*it_part).nelements[k];
+			if (nelems == -1)
+				nelems = values.rows();
+			fwrite(values.data() + offset, sizeof(float), nelems, pFile);
 			offset += (*it_part).nelements[k];
 		}
 	}
@@ -313,11 +316,9 @@ int main(int argc, char* argv[])
 			cout << endl << "         EIGEN PROBLEM        " << endl << "******************************" << endl;
 		BLACS::COMM_ACTIVE.Barrier(); // For printing purposes
 
-		if (ROOT)
-			cout << "Calling ScaLAPACK" << endl << "=================" << endl;
 		prof.tic("EigenProblem");
 
-		ScaEigenSolver<MatrixXd> eig(B, true, opt.eigSolver);
+		ScaEigenSolver<MatrixXd> eig(B, true, opt.eigSolver, opt.dispResiduals);
 
 		if (opt.dispResiduals)
 		{
@@ -622,7 +623,7 @@ int main(int argc, char* argv[])
 			{
 				s << spectrum << '\n';
 				s.close();
-				cout << "\tDONE." << endl;
+				cout << "\tDONE" << endl;
 			}
 			else
 			{
@@ -636,7 +637,7 @@ int main(int argc, char* argv[])
 			{
 				l << lambdas << '\n';
 				l.close();
-				cout << "\tDONE." << endl;
+				cout << "\tDONE" << endl;
 			}
 			else
 			{
@@ -798,11 +799,14 @@ int main(int argc, char* argv[])
 		// Write the .case file
 		if (BLACS::myrank == 0)
 		{
+			vector<string> geopath;
+			boost::split(geopath, opt.geofile, boost::is_any_of("/\\"));
+			
 			std::ofstream ofs(opt.outdir + "dmd.case", std::ofstream::out);
 			ofs << "FORMAT" << endl
 				<< "type: ensight gold" << endl
 				<< "GEOMETRY" << endl
-				<< "model: dmd.geo" << endl
+				<< "model: " << geopath.back() << endl
 				<< "VARIABLE" << endl
 				<< variables_gold.str()
 				<< "TIME" << endl

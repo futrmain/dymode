@@ -11,6 +11,7 @@ function [ snaps ] = hdf2snaps( path, fileroot, n, s, dataset, var )
 % var = {'u', 'null', 'null', 'p'};
 
 nvar = 0;
+var = strsplit(var, ',');
 for v = 1:length(var)
     if ~strncmp(var{v}, 'null', 4)
         nvar = nvar +1;
@@ -19,8 +20,12 @@ end
 
 snaps = [];
 coffset = 1;
-for f = 1:n
+for f = 0+1:n+0
     filename = sprintf('%s\\%s%04i.h5', path, fileroot, f);
+    disp(filename)
+%     filedata = h5read(filename, dataset, [1 1], [327680 71]);
+%     snaps = [snaps, filedata];
+    
     info = h5info(filename, dataset);
     size = info.Dataspace.Size;
     
