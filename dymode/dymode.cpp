@@ -666,6 +666,7 @@ int main(int argc, char* argv[])
 		stringstream variables_gold;
 
 		//cout << BLACS::myrank << " amplitudes " << amplitudes << endl << endl;
+		ModeSort<MatrixXcd> sorted(Modes, lambdas, amplitudes, svd.singularValues, opt.sortMeth, 3);
 
 		//FIXME Add control if nmodes is larger than snaps.cols() - 1
 		int m = 0;
