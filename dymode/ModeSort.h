@@ -82,7 +82,8 @@ public:
 	ModeSort(){};
 	ModeSort(SharedMatrix<MatrixType>& Modes, MatrixType& eigenvalues, Matrix<MatrixType::RealScalar, Dynamic, Dynamic>& norm, Matrix<MatrixType::RealScalar, Dynamic, Dynamic>& singulars, sort_method& method, int NMAX)
 	{
-		orderedIdx = getOrderedIdx(Modes, eigenvalues, norm, singulars, method, NMAX);
+		const int nmax_ = min(NMAX, norm.cols());
+		orderedIdx = getOrderedIdx(Modes, eigenvalues, norm, singulars, method, nmax_);
 	}
 
 	MatrixXi getOrderedIdx(SharedMatrix<MatrixType>& Modes, MatrixType& eigenvalues, Matrix<MatrixType::RealScalar, Dynamic, Dynamic>& norm, Matrix<MatrixType::RealScalar, Dynamic, Dynamic>& singulars, sort_method& method, int NMAX)
@@ -99,15 +100,20 @@ public:
 	{
 		vector<pair<double, int>> v(norm.cols());
 
-		for (int i = 0; i < norm.cols(); ++i) 
+		for (int i = 0; i < norm.cols(); ++i)
 		{
 			v[i].second = i;
 
-			if (eigenvalues(0, i).imag() < 0)
+			if (eigenvalues(i, 0).imag() < 0)
 			{
 				// Should we discard the mode ?
 				if (method.conjugates == false)
-					v[i].first = -1;
+				{
+					if (method.order == descend)
+						v[i].first = -1;
+					else
+						v[i].first = std::numeric_limits<double>::infinity();
+				}
 				else
 					v[i].first = norm(0, i);
 			}
@@ -120,27 +126,27 @@ public:
 			switch (method.energy_ref)
 			{
 			case -11:	// median
-				correction = std::pow(abs(eigenvalues(0, i)), eigenvalues.cols() / 2);
+				correction = std::pow(abs(eigenvalues(i, 0)), eigenvalues.rows() / 2);
 				break;
 			case -10:	// mean
-				if (abs(eigenvalues(0, i)) == 1)
+				if (abs(eigenvalues(i, 0)) == 1)
 					correction = 1;
 				else
-					correction = (1 - std::pow(abs(eigenvalues(0, i)), eigenvalues.cols())) / (eigenvalues.cols() * (1 - abs(eigenvalues(0, i))));
+					correction = (1 - std::pow(abs(eigenvalues(i, 0)), eigenvalues.rows())) / (eigenvalues.rows() * (1 - abs(eigenvalues(i, 0))));
 				break;
 			default:	// snapshot number
-				correction = std::pow(abs(eigenvalues(0, i)), method.energy_ref);
+				correction = std::pow(abs(eigenvalues(i, 0)), method.energy_ref);
 			}
 			v[i].first = v[i].first * correction;
 		}
 
 		if (method.order == descend)
-			std::partial_sort(v.begin(), v.begin() + NMAX, v.end(), greater<pair<double,int>>());
+			std::partial_sort(v.begin(), v.begin() + NMAX, v.end(), greater<pair<double, int>>());
 		else
 			std::partial_sort(v.begin(), v.begin() + NMAX, v.end(), less<pair<double, int>>());
 
 		MatrixXi indices(1, NMAX);
-		for(int i = 0; i < NMAX; ++i)
+		for (int i = 0; i < NMAX; ++i)
 		{
 			indices(0, i) = v[i].second;
 		}

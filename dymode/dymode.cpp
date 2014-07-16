@@ -148,8 +148,8 @@ int main(int argc, char* argv[])
 
 	if (ROOT)
 	{
-	    cout << endl << "The snapshot matrix is    " << snaps.rows() << " by " << snaps.cols() << endl;
-	    cout << "The block size is         " << snaps.cblock() << endl;
+		cout << endl << "The snapshot matrix is    " << snaps.rows() << " by " << snaps.cols() << endl;
+		cout << "The block size is         " << snaps.cblock() << endl;
 	}
 
 	/////**************************************************************************************************/
@@ -172,7 +172,7 @@ int main(int argc, char* argv[])
 		BLACS::COMM_ACTIVE.Barrier(); // For printing purposes
 
 		if (ROOT)
-			cout << "Calling ScaLAPACK" << endl <<  "=================" << endl;
+			cout << "Calling ScaLAPACK" << endl << "=================" << endl;
 		prof.tic("SVD");
 		ScaSVD<MatrixXd> svd(snaps.block(0, 0, snaps.rows(), snaps.cols() - 1), true, true);
 		snaps.clear();
@@ -226,9 +226,9 @@ int main(int argc, char* argv[])
 
 		if (ROOT)
 		{
-			cout << endl << "Saving singular values..."; 
+			cout << endl << "Saving singular values...";
 			prof.tic("WriteSingulars");
-			
+
 			std::ofstream s(opt.outdir + "singulars.txt");
 			s.precision(std::numeric_limits< double >::digits10);
 			if (s.is_open())
@@ -360,9 +360,9 @@ int main(int argc, char* argv[])
 		prof.tic("LinearSolve");
 		//cout << "(" << BLACS::myrank << ")" << endl;
 		prof.tic("FormRHS");
-		
+
 		if (ROOT)
-		  cout << "Preparing the right-hand-side...";
+			cout << "Preparing the right-hand-side...";
 
 		SharedMatrix<MatrixXd> rhs = svd.matrixU.transpose() * snaps.block(0, 0/*Nt - 1*/, snaps.rows(), 1);
 		svd.matrixU.clear();
@@ -375,7 +375,7 @@ int main(int argc, char* argv[])
 			cout << "\tDONE" << endl;
 
 		if (ROOT)
-                  cout << "Preparing the system...         ";
+			cout << "Preparing the system...         ";
 
 		BLACS::COMM_ACTIVE.Barrier();
 
@@ -414,7 +414,7 @@ int main(int argc, char* argv[])
 		BLACS::COMM_ACTIVE.Barrier();
 
 		if (ROOT)
-                  cout << "\tDONE" << endl << endl;
+			cout << "\tDONE" << endl << endl;
 
 		BLACS::COMM_ACTIVE.Barrier();
 
@@ -444,9 +444,9 @@ int main(int argc, char* argv[])
 
 		//cout << BLACS::myrank << ", lambdas: " << lambdas << endl << flush;
 		//cout << BLACS::myrank << ", solution: " << solver.solution.local_matrix << endl << flush;
-		
+
 		if (ROOT)
-		  cout << "Reconstructing the weights...     ";
+			cout << "Reconstructing the weights...     ";
 
 		prof.tic("FormWeights");
 		// Reconstitute the solution to the original system
@@ -497,7 +497,7 @@ int main(int argc, char* argv[])
 							BLACS::COMM_ACTIVE.Send(im.data(), im.cols(), MPI::DOUBLE, ownerprev, BLACS::myrank);
 
 							weights.local_matrix.row(l).real() = re;
-							weights.local_matrix.row(l).imag() = - solver.solution.local_matrix.row(l);
+							weights.local_matrix.row(l).imag() = -solver.solution.local_matrix.row(l);
 						}
 					}
 					++k;
@@ -514,9 +514,9 @@ int main(int argc, char* argv[])
 			}
 		}
 		prof.toc("FormWeights");
-		
+
 		if (ROOT)
-		  cout << "\tDONE" << endl;
+			cout << "\tDONE" << endl;
 
 
 		/////**************************************************************************************************/
@@ -529,18 +529,18 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 
 		if (ROOT)
-                  cout << "Creating the modes...             ";
+			cout << "Creating the modes...             ";
 
 		SharedMatrix<MatrixXcd> Modes = svd.matrixU.cast<std::complex<double> >() * X;
 
 		if (ROOT)
-                  cout << "\tDONE" << endl;
-		
+			cout << "\tDONE" << endl;
+
 		if (ROOT)
-                  cout << "Scaling the modes...              ";
+			cout << "Scaling the modes...              ";
 		Modes.ColScale(weights);
 		if (ROOT)
-                  cout << "\tDONE" << endl;
+			cout << "\tDONE" << endl;
 
 		if (opt.dispResiduals)
 		{
@@ -553,11 +553,11 @@ int main(int argc, char* argv[])
 			SharedMatrix<MatrixXcd> reconstruct = snaps.cast<complex<double>>();
 			reconstruct.pgemm(1., Modes, Vandermonde, -1.);
 			//cout << reconstruct << endl;
-			
+
 			reconstruct.block(0, 0, snaps.rows(), snaps.cols() - 1);
 			double r_loc = (reconstruct.localBlock().rows() * reconstruct.localBlock().cols()) > 0
-			  ? reconstruct.localBlock().cwiseAbs().maxCoeff()
-			  : -1;
+				? reconstruct.localBlock().cwiseAbs().maxCoeff()
+				: -1;
 			double r;
 			BLACS::COMM_ACTIVE.Reduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
 
@@ -568,13 +568,13 @@ int main(int argc, char* argv[])
 			r_loc = (reconstruct.localBlock().rows() * reconstruct.localBlock().cols()) > 0
 				? reconstruct.localBlock().cwiseAbs().maxCoeff()
 				: -1;
-			
+
 			BLACS::COMM_ACTIVE.Reduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
 			if (ROOT)
 				cout << "Residual from Modes (last snapshot): \t" << r << endl;
 			prof.toc("residualLin");
 
-			
+
 			std::cout.copyfmt(std::ios(NULL));
 		}
 
@@ -666,138 +666,120 @@ int main(int argc, char* argv[])
 		stringstream variables_gold;
 
 		//cout << BLACS::myrank << " amplitudes " << amplitudes << endl << endl;
-		ModeSort<MatrixXcd> sorted(Modes, lambdas, amplitudes, svd.singularValues, opt.sortMeth, 3);
+		ModeSort<MatrixXcd> sorted(Modes, lambdas, amplitudes, svd.singularValues, opt.sortMeth, opt.nmodes);
+		const MatrixXi indices = sorted.orderedIdx;
 
-		//FIXME Add control if nmodes is larger than snaps.cols() - 1
-		int m = 0;
-		bool no_modes_left = false;		
-		while (m < opt.nmodes && no_modes_left == false)
+		for (int m = 0; m < indices.cols(); ++m)
 		{
-			//Find mode with highest amplitude
-			amplitudes.maxCoeff(&x_mode, &i_mode); //x_mode is always 0 since amplitudes is a 1xN matrix
-			BLACS::COMM_ACTIVE.Barrier();
-			//cout << BLACS::myrank << " i_mode initial " << i_mode << endl << endl;
-			BLACS::COMM_ACTIVE.Barrier();
-			// Only print 1 mode out of a possible conjugate pair
-			while (lambdas(i_mode, 0).imag() < 0)
-			{
-				BLACS::COMM_ACTIVE.Barrier();
-				amplitudes(0, i_mode) = -1;	// Get the bottom part of the spectrum out of the game
-				amplitudes.maxCoeff(&x_mode, &i_mode);
-				//cout << BLACS::myrank << " i_mode in loop " << i_mode << endl << endl;
+			const int i_mode = indices(0, m);
+
+			if (opt.sortMeth.conjugates == false && lambdas(i_mode, 0).imag() < 0)
+			{	// There is no more mode in the top half plane
+				m = indices.cols();
 			}
-
-			if (amplitudes(0, i_mode) < 0)
-			  no_modes_left = true;
-			BLACS::COMM_ACTIVE.Barrier();
-			//cout << BLACS::myrank << " i_mode final " << i_mode << endl << endl;
-			amplitudes(0, i_mode) = -1;
-			BLACS::COMM_ACTIVE.Barrier();
-			//cout << BLACS::myrank << " test " << i_mode << endl << endl;
-			if (no_modes_left == false)
-			  {
-			if (BLACS::mycol == BLACS::indxg2p(i_mode, Modes.cblock(), BLACS::grid_cols))
+			else
 			{
-				int i_loc = BLACS::indxg2l(i_mode, Modes.cblock(), BLACS::grid_cols);
-				MatrixXf exportdata;
-
-
-				// Gather the global column on row 0
-				Matrix<MPI::Request, Dynamic, Dynamic> Irecv_requests;
-				Matrix<Matrix<float, Dynamic, Dynamic>, Dynamic, 1> RecvBuffer;
-				if (BLACS::myrow == 0)
+				if (BLACS::mycol == BLACS::indxg2p(i_mode, Modes.cblock(), BLACS::grid_cols))
 				{
-					exportdata.resize(Modes.rows(), 2);
-					Irecv_requests.resize(BLACS::grid_rows, 1);
-					RecvBuffer.resize(BLACS::grid_rows, 1);
+					int i_loc = BLACS::indxg2l(i_mode, Modes.cblock(), BLACS::grid_cols);
+					MatrixXf exportdata;
 
-					for (int r = 0; r < BLACS::grid_rows; ++r)
+
+					// Gather the global column on row 0
+					Matrix<MPI::Request, Dynamic, Dynamic> Irecv_requests;
+					Matrix<Matrix<float, Dynamic, Dynamic>, Dynamic, 1> RecvBuffer;
+					if (BLACS::myrow == 0)
 					{
-						int size = BLACS::peigen_numroc(Modes.rows(), Modes.rblock(), r, 0, BLACS::grid_rows);
-						RecvBuffer(r, 0).resize(size, 2);
-						int powner = BLACS::Cblacs_pnum(BLACS::ctxt, r, BLACS::mycol);
-						Irecv_requests(r, 0) = BLACS::COMM_ACTIVE.Irecv(RecvBuffer(r, 0).data(), size * 2, MPI::FLOAT, powner, 1/*tag*/);
+						exportdata.resize(Modes.rows(), 2);
+						Irecv_requests.resize(BLACS::grid_rows, 1);
+						RecvBuffer.resize(BLACS::grid_rows, 1);
+
+						for (int r = 0; r < BLACS::grid_rows; ++r)
+						{
+							int size = BLACS::peigen_numroc(Modes.rows(), Modes.rblock(), r, 0, BLACS::grid_rows);
+							RecvBuffer(r, 0).resize(size, 2);
+							int powner = BLACS::Cblacs_pnum(BLACS::ctxt, r, BLACS::mycol);
+							Irecv_requests(r, 0) = BLACS::COMM_ACTIVE.Irecv(RecvBuffer(r, 0).data(), size * 2, MPI::FLOAT, powner, 1/*tag*/);
+						}
+					}
+
+					Matrix<float, Dynamic, 2> SendBuffer(Modes.local_matrix.rows(), 2);
+					SendBuffer.col(0) = Modes.local_matrix.col(i_loc).cwiseAbs().cast<float>();
+					SendBuffer.col(1) = Modes.local_matrix.col(i_loc).imag().binaryExpr(Modes.local_matrix.col(i_loc).real(), std::ptr_fun(atan2<double, double>)).cast<float>();
+					int col_root = BLACS::Cblacs_pnum(BLACS::ctxt, 0, BLACS::mycol);
+					BLACS::COMM_ACTIVE.Send(SendBuffer.data(), SendBuffer.rows() * SendBuffer.cols(), MPI::FLOAT, col_root, 1 /*tag*/);
+
+					if (BLACS::myrow == 0)
+					{
+						MPI::Request::Waitall(BLACS::grid_rows, Irecv_requests.data());
+
+						// Combine the buffers
+						for (int rb = 0; rb < ceil((double)exportdata.rows() / Modes.rblock()); rb++)
+						{
+							int roffset = Modes.rblock() * floor(rb / BLACS::grid_rows);
+							int _nrows = min(Modes.rblock(), (int)(exportdata.rows() - rb*Modes.rblock()));
+							int pr_owner = rb % BLACS::grid_rows;
+							exportdata.block(rb*Modes.rblock(), 0, _nrows, 1) = RecvBuffer(pr_owner, 0).block(roffset, 0, _nrows, 1);
+							exportdata.block(rb*Modes.rblock(), 1, _nrows, 1) = RecvBuffer(pr_owner, 0).block(roffset, 1, _nrows, 1);
+						}
+					}
+
+					// Print to disk from row 0
+					if (BLACS::myrow == 0)
+					{
+						cout << "(" << BLACS::myrank << ") " << " writing mode " << m << "...";
+						FILE *pFile;
+
+						int offset_gold = 0;
+						MatrixXf values;
+						for (string var : opt.variables)
+						{
+							if (!(var == "null"))
+							{
+								stringstream filenameRE;
+								filenameRE << "mode" << setfill('0') << setw(6) << m << "." << var << ".abs";
+
+								pFile = fopen((opt.outdir + filenameRE.str()).c_str(), "wb");
+
+								gold_print_header(m, "Module", var, pFile);
+
+								values = exportdata.block(offset_gold, 0, dreader.Np, 1);
+								gold_print_values(values, georead, pFile);
+
+								fclose(pFile);
+
+								stringstream filenameIM;
+								filenameIM << "mode" << setfill('0') << setw(6) << m << "." << var << ".ang";
+
+								pFile = fopen((opt.outdir + filenameIM.str()).c_str(), "wb");
+
+								gold_print_header(m, "Angle", var, pFile);
+
+								values = exportdata.block(offset_gold, 1, dreader.Np, 1);
+								gold_print_values(values, georead, pFile);
+
+								fclose(pFile);
+
+								offset_gold += dreader.Np;
+							}
+						}
+						cout << "\tDONE" << endl;
 					}
 				}
 
-				Matrix<float, Dynamic, 2> SendBuffer(Modes.local_matrix.rows(), 2);
-				SendBuffer.col(0) = Modes.local_matrix.col(i_loc).cwiseAbs().cast<float>();
-				SendBuffer.col(1) = Modes.local_matrix.col(i_loc).imag().binaryExpr(Modes.local_matrix.col(i_loc).real(), std::ptr_fun(atan2<double, double>)).cast<float>();
-				int col_root = BLACS::Cblacs_pnum(BLACS::ctxt, 0, BLACS::mycol);
-				BLACS::COMM_ACTIVE.Send(SendBuffer.data(), SendBuffer.rows() * SendBuffer.cols(), MPI::FLOAT, col_root, 1 /*tag*/);
-
-				if (BLACS::myrow == 0)
+				// Add all modes/variables to the list of variables
+				if (BLACS::myrank == 0)
 				{
-					MPI::Request::Waitall(BLACS::grid_rows, Irecv_requests.data());
-
-					// Combine the buffers
-					for (int rb = 0; rb < ceil((double)exportdata.rows() / Modes.rblock()); rb++)
-					{
-						int roffset = Modes.rblock() * floor(rb / BLACS::grid_rows);
-						int _nrows = min(Modes.rblock(), (int)(exportdata.rows() - rb*Modes.rblock()));
-						int pr_owner = rb % BLACS::grid_rows;
-						exportdata.block(rb*Modes.rblock(), 0, _nrows, 1) = RecvBuffer(pr_owner, 0).block(roffset, 0, _nrows, 1);
-						exportdata.block(rb*Modes.rblock(), 1, _nrows, 1) = RecvBuffer(pr_owner, 0).block(roffset, 1, _nrows, 1);
-					}
-				}
-
-				// Print to disk from row 0
-				if (BLACS::myrow == 0)
-				{
-					cout << "(" << BLACS::myrank << ") " << " writing mode " << m << "...";
-					FILE *pFile;
-
-					int offset_gold = 0;
-					MatrixXf values;
 					for (string var : opt.variables)
 					{
 						if (!(var == "null"))
 						{
-							stringstream filenameRE;
-							filenameRE << "mode" << setfill('0') << setw(6) << m << "." << var << ".abs";
-
-							pFile = fopen((opt.outdir + filenameRE.str()).c_str(), "wb");
-
-							gold_print_header(m, "Module", var, pFile);
-
-							values = exportdata.block(offset_gold, 0, dreader.Np, 1);
-							gold_print_values(values, georead, pFile);
-
-							fclose(pFile);
-
-							stringstream filenameIM;
-							filenameIM << "mode" << setfill('0') << setw(6) << m << "." << var << ".ang";
-
-							pFile = fopen((opt.outdir + filenameIM.str()).c_str(), "wb");
-
-							gold_print_header(m, "Angle", var, pFile);
-
-							values = exportdata.block(offset_gold, 1, dreader.Np, 1);
-							gold_print_values(values, georead, pFile);
-
-							fclose(pFile);
-
-							offset_gold += dreader.Np;
+							variables_gold << "scalar per element: " << var << m << "abs " << "mode" << setfill('0') << setw(6) << m << "." << var << ".abs" << endl;
+							variables_gold << "scalar per element: " << var << m << "ang " << "mode" << setfill('0') << setw(6) << m << "." << var << ".ang" << endl;
 						}
 					}
-					cout << "\tDONE" << endl;
 				}
 			}
-
-			// Add all modes/variables to the list of variables
-			if (BLACS::myrank == 0)
-			{
-				for (string var : opt.variables)
-				{
-					if (!(var == "null"))
-					{
-						variables_gold << "scalar per element: " << var << m << "abs " << "mode" << setfill('0') << setw(6) << m << "." << var << ".abs" << endl;
-						variables_gold << "scalar per element: " << var << m << "ang " << "mode" << setfill('0') << setw(6) << m << "." << var << ".ang" << endl;
-					}
-				}
-			}
-			++m;
-			  } // no_modes_left == false
 		}
 
 		// Write the .case file
@@ -805,7 +787,7 @@ int main(int argc, char* argv[])
 		{
 			vector<string> geopath;
 			boost::split(geopath, opt.geofile, boost::is_any_of("/\\"));
-			
+
 			std::ofstream ofs(opt.outdir + "dmd.case", std::ofstream::out);
 			ofs << "FORMAT" << endl
 				<< "type: ensight gold" << endl
@@ -842,7 +824,8 @@ int main(int argc, char* argv[])
 		BLACS::COMM_ACTIVE.Barrier();
 	} // end IF ACTIVE
 	else
-	{	}
+	{
+	}
 
 	MPI::COMM_WORLD.Barrier();
 
