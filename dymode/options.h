@@ -21,6 +21,7 @@ public:
 	string geofile;
 	int nsingulars;
 	int sblock;
+	sort_method sortMeth;
 
 	options(int argc, char* argv[])
 	{
@@ -66,6 +67,9 @@ public:
 
 			// Block size for shared matrics (blocks have to be square!)
 			TCLAP::ValueArg<int> sblockArg("b", "block", "Block size of the shared matrices. The minimum value is 6", false /*req*/, 6/*default*/, "int", input);
+
+			// Block size for shared matrics (blocks have to be square!)
+			TCLAP::ValueArg<string> sortmethArg("t", "sort", "Method for sorting the modes", false /*req*/, "energy,median"/*default*/, "string", input);
 
 			// ************* Parse the argv array ************* //
 			input.parse(argc, argv);
@@ -114,6 +118,8 @@ public:
 				//if (BLACS::myrank)
 					cout << "Warning: The block size must be at least 6. The size entered, " << sblock << ", is not valid. Using --block 6" << endl;
 			}
+
+			sortMeth.set(sortmethArg.getValue());
 		}
 		catch (TCLAP::ArgException &e)  // catch any exceptions
 		{
