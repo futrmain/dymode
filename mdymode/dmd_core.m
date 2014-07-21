@@ -61,6 +61,8 @@ Sigp(Sig > threshold) = 1 ./ Sig(Sig > threshold);
 %% Create B
 B = U' * S(:, 2:end) * V * diag(Sigp);
 
+clear V Sigp 
+
 
 %% Eigen problem
 [X, eigenvalues] =  eig(B);
@@ -71,13 +73,20 @@ if strcmp(p.Results.residuals, 'true')
     disp (['Residual from eigen problem: ' num2str(r)]);
 end
 
+clear B
+
 %% Weights
 w = X\(U'*S(:, 1));
+
+clear S
 
 
 %% Create the modes
 modes = U * X;
+clear U X
+
 modes = modes * diag(w);
+clear w
 
 if strcmp(p.Results.residuals, 'true') 
     r = max(max(abs(modes*fliplr(vander(eigenvalues)) - S(:, 1:end-1))));
