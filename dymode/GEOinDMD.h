@@ -185,7 +185,7 @@ public:
 			gold_part curr_part;
 			curr_part.number = 1;
 			curr_part.nelements.push_back(-1);
-			curr_part.telements.push_back("hex8");
+			curr_part.telements.push_back("hexa8");
 
 			parts.push_back(curr_part);
 		}
