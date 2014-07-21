@@ -9,13 +9,6 @@ function [ eigenvalues, modes, energy, Sig ] = dmd_core( S, varargin )
 %   OPTION      DEFAULT     DESCRIPTION
 %   singulars   0           Number of singular values to display.
 %   residual    'false'     Setting 'true' displays the residuals.
-%   sorting     -11         Way to sort the modes:
-%                           >= 0: Use the modes' energies at specified
-%                                 timestep;
-%                           -10:  Use the modes' mean energy over the sampled
-%                                 period;
-%                           -11:  Use the modes' median energy over the
-%                                 sampled period.
 %
 %   OUTPUT
 %   eigenvalues     Eigenvalues associated with the modes.
@@ -30,7 +23,6 @@ p = inputParser;
 addRequired(p,'snaps');
 addParameter(p,'singulars',0,@isnumeric);
 addParameter(p,'residuals','false',@ischar);
-addParameter(p,'sorting',-11,@isnumeric);
 
 parse(p,S, varargin{:});
 
@@ -96,39 +88,14 @@ end
 % disp(max(max(abs(R))))
 
 
+
+
 %% Compute energy
-normsqr_modes = sum(modes .* conj(modes), 1);
-
-if p.Results.sorting >= 0
-    
-    % Use mode energy at specified time step 
-    energ_compensate = eigenvalues .^ p.Results.sorting;
-    
-elseif p.Results.sorting == -10
-    
-    % Use mode energy averaged over sampling period
-    energ_compensate = abs(eigenvalues);
-    energ_compensate(abs(eigenvalues) < 1 | abs(eigenvalues) > 1) ...
-        =  (1 - abs(eigenvalues(abs(eigenvalues) < 1 | abs(eigenvalues) > 1)) .^ (2 * length(eigenvalues))) ...
-        ./ ( (1 - abs(eigenvalues(abs(eigenvalues) < 1 | abs(eigenvalues) > 1)) .^ 2) * length(eigenvalues) );
-
-elseif p.Results.sorting == -11
-    
-    % Use median mode energy
-    energ_compensate = abs(eigenvalues) .^ (0.5 * (length(eigenvalues) - 1));
-
-end
-
-energy = normsqr_modes .* energ_compensate';
+energy = sum(modes .* conj(modes), 1);
 
 % %% Get rid of half of the conjugate pairs
 % modes = modes(:, imag(eigenvalues) >= 0);
 % e_reduced = energy(imag(eigenvalues) >= 0);
-
-%% Sort the modes by energy
-[energy, i] = sort(energy, 'descend');
-modes = modes(:, i);
-eigenvalues = eigenvalues(i);
 
 
 end
