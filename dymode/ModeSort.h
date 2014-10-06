@@ -80,13 +80,13 @@ public:
 	MatrixXi orderedIdx;
 
 	ModeSort(){};
-	ModeSort(SharedMatrix<MatrixType>& Modes, MatrixType& eigenvalues, Matrix<MatrixType::RealScalar, Dynamic, Dynamic>& norm, Matrix<MatrixType::RealScalar, Dynamic, Dynamic>& singulars, sort_method& method, int NMAX)
+	ModeSort(SharedMatrix<MatrixType>& Modes, MatrixType& eigenvalues, Matrix<typename MatrixType::RealScalar, Dynamic, Dynamic>& norm, Matrix<typename MatrixType::RealScalar, Dynamic, Dynamic>& singulars, sort_method& method, int NMAX)
 	{
-		const int nmax_ = min(NMAX, norm.cols());
+		const int nmax_ = min(NMAX, (int)norm.cols());
 		orderedIdx = getOrderedIdx(Modes, eigenvalues, norm, singulars, method, nmax_);
 	}
 
-	MatrixXi getOrderedIdx(SharedMatrix<MatrixType>& Modes, MatrixType& eigenvalues, Matrix<MatrixType::RealScalar, Dynamic, Dynamic>& norm, Matrix<MatrixType::RealScalar, Dynamic, Dynamic>& singulars, sort_method& method, int NMAX)
+	MatrixXi getOrderedIdx(SharedMatrix<MatrixType>& Modes, MatrixType& eigenvalues, Matrix<typename MatrixType::RealScalar, Dynamic, Dynamic>& norm, Matrixtypename <MatrixType::RealScalar, Dynamic, Dynamic>& singulars, sort_method& method, int NMAX)
 	{
 		if (method.stype == energy)
 		{
@@ -96,7 +96,7 @@ public:
 			return energy_sort(eigenvalues, norm, method, NMAX);
 	}
 
-	MatrixXi energy_sort(const MatrixType& eigenvalues, const Matrix<MatrixType::RealScalar, Dynamic, Dynamic>& norm, const sort_method& method, const int& NMAX)
+	MatrixXi energy_sort(const MatrixType& eigenvalues, const Matrix<typename MatrixType::RealScalar, Dynamic, Dynamic>& norm, const sort_method& method, const int& NMAX)
 	{
 		vector<pair<double, int>> v(norm.cols());
 
@@ -122,7 +122,7 @@ public:
 				v[i].first = norm(0, i);
 			}
 
-			MatrixType::RealScalar correction;
+			typename MatrixType::RealScalar correction;
 			switch (method.energy_ref)
 			{
 			case -11:	// median
