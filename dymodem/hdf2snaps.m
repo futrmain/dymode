@@ -1,14 +1,24 @@
 function [ snaps ] = hdf2snaps( path, fileroot, n, s, dataset, var )
-%READH5 Summary of this function goes here
-%   Detailed explanation goes here
-
-% clear all
-% path = 'D:\DMD\DMD\x64\NNDEB';
-% fileroot = 'Re350_oscillating';
-% n = 2;
-% s = 7;
-% dataset = '/snapshots_T';
-% var = {'u', 'null', 'null', 'p'};
+%hdf2snaps Create a snapshot matrix from an hdf5 file sequence
+%   hdf2snaps reads the data contained inside a series of hdf5 files and
+%   returns it as a matrix output. This function reads the same type of
+%   hdf5 files as those used by dymode.
+%
+%   INPUT
+%   path            The path to the directory containing the hdf5 files
+%   fileroot        The name of the hdf5, without the file number
+%   n               The number of files to be read; i.e. the files
+%                   <fileroot>0001.h5 to <fileroot><n>.h5 will be read
+%   s               The stride between the snapshots to read
+%   dataset         The name of the dataset containing the snapshot data,
+%                   e.g. '/snapshots_T'
+%   var             The list of variables making up the rows of the matrix.
+%                   Use "null" to skip reading blocks of rows; e.g. use 
+%                   'a,null' to read only the first half of the rows
+%
+%   OUTPUT
+%   snaps           A MAtlab matrix containing the snapshos read from disk.
+%%
 
 nvar = 0;
 var = strsplit(var, ',');
@@ -23,8 +33,6 @@ coffset = 1;
 for f = 0+1:n+0
     filename = sprintf('%s\\%s%04i.h5', path, fileroot, f);
     disp(filename)
-%     filedata = h5read(filename, dataset, [1 1], [327680 71]);
-%     snaps = [snaps, filedata];
     
     info = h5info(filename, dataset);
     size = info.Dataspace.Size;

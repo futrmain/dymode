@@ -1,5 +1,5 @@
 function [ eigenvalues, energy, modes, Sig ] = dymodem( filename, outdir, varargin )
-%MDYMODE Matlab equivalent to dymode
+%DYMODEM Matlab equivalent to dymode
 %
 %   Example:
 %   mdymode('/scratch/my_file', '/scratch/results/', 'variables', 'u,null,null,p');

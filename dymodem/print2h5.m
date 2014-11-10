@@ -1,6 +1,22 @@
 function [ last_index ] = print2h5( S, filename, dataset, snaps_per_file, start_index )
-%PRINT2H5 Summary of this function goes here
-%   Detailed explanation goes here
+%PRINT2H5 Saves a Matlab Matrix into a set of HDF5 files.
+%   This function saves a given Matrix into a set of hdf5 files compatible 
+%   with dymode and dymodem. 
+%
+%   INPUT
+%   S                   The matrix to be saved on disk
+%   filename            A string containing the path and name of the files
+%                       to be saved; e.g. '~/data/mydata'
+%   dataset             The name of the dataset in which to save the data;
+%                       e.g. '/snapshots_T'
+%   snaps_per_file      The number of columns of the matrix (snapshots) to
+%                       save in one file before creating a new file
+%   start_index         The number of the first file that will be created.
+%                       The default is 1. 
+%
+%   OUTPUT
+%   last_index          The number of the last file that was saved on disk.
+%%
 
 % Default values
 if ~exist('dataset','var') || isempty(dataset)
