@@ -28,12 +28,12 @@ if ~exist('snaps_per_file','var') || isempty(snaps_per_file)
 end
 
 if ~exist('start_index','var') || isempty(start_index)
-  start_index = 0;
+  start_index = 1;
 end
 
 
 nfiles = ceil(size(S,2) / snaps_per_file);
-for fnum = 1:nfiles
+for fnum = 0:nfiles-1
     fname = sprintf('%s%04i.h5', filename, fnum + start_index);
     
     s = S(:, (f-1) * snaps_per_file + 1 : min(f * snaps_per_file, end));
