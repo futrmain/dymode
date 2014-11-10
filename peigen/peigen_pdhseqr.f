@@ -1,5 +1,5 @@
-      SUBROUTINE PEIGEN_PDHSEQR( JOB, COMPZ, N, ILO, IHI, H, DESCH, WR, 
-     $                 WI, Z, DESCZ, WORK, LWORK, IWORK, LIWORK, INFO)
+      SUBROUTINE PEIGEN_PDHSEQR( JOB, COMPZ, N, ILO, IHI, H, DESCH, WR,
+     $                  WI, Z, DESCZ, WORK, LWORK, IWORK, LIWORK, INFO )
 *
 *     Contribution from the Department of Computing Science and HPC2N,
 *     Umea University, Sweden
@@ -354,7 +354,7 @@
 *
 *        Quick return in case of invalid argument.
 *
-         CALL PXERBLA( 'PDHSEQR', -INFO )
+         CALL PXERBLA( ICTXT, 'PDHSEQR', -INFO )
          RETURN
 *
       ELSE IF( N.EQ.0 ) THEN
