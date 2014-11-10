@@ -86,7 +86,7 @@ public:
 		orderedIdx = getOrderedIdx(Modes, eigenvalues, norm, singulars, method, nmax_);
 	}
 
-	MatrixXi getOrderedIdx(SharedMatrix<MatrixType>& Modes, MatrixType& eigenvalues, Matrix<typename MatrixType::RealScalar, Dynamic, Dynamic>& norm, Matrixtypename <MatrixType::RealScalar, Dynamic, Dynamic>& singulars, sort_method& method, int NMAX)
+	MatrixXi getOrderedIdx(SharedMatrix<MatrixType>& Modes, MatrixType& eigenvalues, Matrix<typename MatrixType::RealScalar, Dynamic, Dynamic>& norm, Matrix<typename MatrixType::RealScalar, Dynamic, Dynamic>& singulars, sort_method& method, int NMAX)
 	{
 		if (method.stype == energy)
 		{
