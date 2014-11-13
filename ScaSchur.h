@@ -27,7 +27,10 @@ namespace peigen
 	template <typename MatrixType>
 	ScaSchur<MatrixType>::ScaSchur(const SharedMatrix<MatrixType>& H, const SharedMatrix<MatrixType>& Q, bool computeSchur, bool computeVectors) : T(H), Z(Q), eigenvals(MatrixXcd(H.rows(), 1))
 	{
-#ifndef _WIN32 /* Win32 or Win64 environment */
+		if (ROOT)
+		{
+			std::cout << "Warning: the ScaLAPACK routine p*hseqr used for Schur reduction may not work in all ScaLAPACK implementation." << std::endl;
+		}
 		assert(T.rblock() >= 6 && "Row blocking must be at least 6 rows for PDHSEQR");
 		
 
@@ -43,7 +46,7 @@ namespace peigen
 	
 		int liwork; 
 
-		PBLAS::peigen_pxhseqr(job, compz, N, 1, N, T.localData(), T.desc, wr.data(), wi.data(), Z.localData(), Z.desc, &lwork, -1, &liwork, -1, &info);
+		PBLAS::pxhseqr(job, compz, N, 1, N, T.localData(), T.desc, wr.data(), wi.data(), Z.localData(), Z.desc, &lwork, -1, &liwork, -1, &info);
 		if (info != 0)
 			std::cout << "(" << BLACS::myrank << ") " << "had a problem querying work space for Schur decomposition, return value was " << info << endl;
 
@@ -61,7 +64,7 @@ namespace peigen
 		MatrixXi iwork(liwork, 1);
 
 		//cout << "(" << BLACS::myrank << ") " << "Right here, Right now" << endl;
-		PBLAS::peigen_pxhseqr(job, compz, N, 1, N, T.localData(), T.desc, wr.data(), wi.data(), Z.localData(), Z.desc, work.data(), (int)lwork, iwork.data(), liwork, &info);
+		PBLAS::pxhseqr(job, compz, N, 1, N, T.localData(), T.desc, wr.data(), wi.data(), Z.localData(), Z.desc, work.data(), (int)lwork, iwork.data(), liwork, &info);
 		if (info != 0)
 			std::cout << "(" << BLACS::myrank << ") " << "had a problem computing Schur decomposition, return value was " << info << endl;
 		else
@@ -75,7 +78,6 @@ namespace peigen
 		{
 			eigenvals(k, 0) = complex<double>(wr(k), wi(k));
 		}
-#endif
 	}
 
 	/**********************************************************************************************************/
