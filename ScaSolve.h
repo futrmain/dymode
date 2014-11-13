@@ -1,11 +1,13 @@
 #ifndef PEIGEN_SCASOLVE_H
 #define PEIGEN_SCASOLVE_H
 
+#include <type_traits>
+
 namespace peigen
 {
 	enum LinSolverName_t { Eigen = 0, pxgesv, pxgesvx, EigenSVD };
 
-	template< typename MatrixType, bool isComplex = (std::is_same<MatrixType::Scalar, complex<float>>::value || is_same<MatrixType::Scalar, complex<double>>::value) >
+	template< typename MatrixType, bool isComplex = (is_same<typename MatrixType::Scalar, complex<float>>::value || is_same<typename MatrixType::Scalar, complex<double>>::value) >
 	class xwork 
 	{
 	private:
@@ -23,8 +25,8 @@ namespace peigen
 	class xwork<MatrixType, true >
 	{
 	private:
-		typedef MatrixType::RealScalar RealScalar;
-		typedef MatrixType::Scalar Scalar;
+		typedef typename MatrixType::RealScalar RealScalar;
+		typedef typename MatrixType::Scalar Scalar;
 		Matrix<RealScalar, Dynamic, 1> work;
 	public:
 		Scalar* data() { return work.data(); }
@@ -37,6 +39,8 @@ namespace peigen
 	template <typename MatrixType>
 	class ScaSolve
 	{
+	private:
+	  typedef typename MatrixType::RealScalar RealScalar;
 	public:
 		LinSolverName_t method;
 		SharedMatrix<MatrixType> solution, matrixLU;
@@ -49,21 +53,21 @@ namespace peigen
 			return *this;
 		}
 
-		MatrixType::RealScalar residual(SharedMatrix<MatrixType> A, SharedMatrix<MatrixType> B)
+		RealScalar residual(SharedMatrix<MatrixType> A, SharedMatrix<MatrixType> B)
 		{
 			SharedMatrix<MatrixType> R(B);
 			R.pgemm(1., A, solution, -1.);
 			
 			// Compute local highest residual
-			return R.local_matrix.cols() > 0 ? R.local_matrix.cwiseAbs().maxCoeff() : -1;
+			return (R.local_matrix.rows() * R.local_matrix.cols()) > 0 ? R.local_matrix.cwiseAbs().maxCoeff() : -1;
 		}
 
-		MatrixType::RealScalar global_residual(SharedMatrix<MatrixType> original, SharedMatrix<MatrixType> rhs)
+		RealScalar global_residual(SharedMatrix<MatrixType> original, SharedMatrix<MatrixType> rhs)
 		{
 			double r_loc = residual(original, rhs);
 			double r;
 
-			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX, 0);
+			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX);
 
 			return r;
 		}
@@ -99,12 +103,12 @@ namespace peigen
 
 						SharedMatrix<MatrixType> Af(A);
 						SharedMatrix<MatrixType> x(B);
-						Matrix<MatrixType::RealScalar, Dynamic, 1> r(matrixLU.local_matrix.rows(), 1);
-						Matrix<MatrixType::RealScalar, Dynamic, 1> c(matrixLU.local_matrix.cols(), 1);
+						Matrix<RealScalar, Dynamic, 1> r(matrixLU.local_matrix.rows(), 1);
+						Matrix<RealScalar, Dynamic, 1> c(matrixLU.local_matrix.cols(), 1);
 
-						MatrixType::RealScalar rcond;
-						Matrix<MatrixType::RealScalar, Dynamic, 1> ferr(solution.local_matrix.cols(), 1);
-						Matrix<MatrixType::RealScalar, Dynamic, 1> berr(solution.local_matrix.cols(), 1);
+						RealScalar rcond;
+						Matrix<RealScalar, Dynamic, 1> ferr(solution.local_matrix.cols(), 1);
+						Matrix<RealScalar, Dynamic, 1> berr(solution.local_matrix.cols(), 1);
 
 						MatrixType work(1, 1);
 						xwork<MatrixType> xspace;
@@ -119,8 +123,8 @@ namespace peigen
 							&rcond, ferr.data(), berr.data(),
 							work.data(), -1, xspace.data(), -1, &info);
 
-						work.resize((int)work(0, 0), 1);
-						xspace.resize((int)xspace(0, 0), 1);
+						work.resize(max(1, (int)work(0, 0)), 1);
+						xspace.resize(max(1, (int)xspace(0, 0)), 1);
 
 						PBLAS::pxgesvx('E', 'N', matrixLU.x, solution.cols(),
 							matrixLU.localData(), matrixLU.i, matrixLU.j, matrixLU.desc,
@@ -136,10 +140,18 @@ namespace peigen
 							std::cout << "lwork is " << work(0, 0) << ", lrwork is: " << xspace(0,0) << ", info is: " << info << std::endl;*/
 
 						if (BLACS::myrank == 0)
-							std::cout << "rcond = " << rcond << endl << "ferr = " << ferr(0, 0) << endl << "berr = " << berr(0,0) << std::endl;
+							std::cout << "rcond = " << rcond << endl << "ferr  = " << ferr(0, 0) << endl << "berr  = " << berr(0,0) << std::endl;
 
-						if (BLACS::myrank == 0)
-							std::cout << "Solved a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesvx." << endl << "Return code was: " << info << endl << std::endl;
+						if (info == 0)
+						{
+							if (BLACS::myrank == 0)
+								std::cout << "Solved a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesvx." << endl << "pxgesvx returned successfully" << endl << std::endl;
+						}
+						else
+						{
+							if (BLACS::myrank == 0)
+								std::cout << "Failed to solve a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesvx." << endl << "pxgesvx returned the following error code: " << info << endl << std::endl;
+						}
 
 						solution = x;
 
@@ -163,9 +175,16 @@ namespace peigen
 					   PBLAS::pxgesv(matrixLU.x, solution.cols(),
 						   matrixLU.localData(), matrixLU.i, matrixLU.j, desc,
 						   ipiv, solution.localData(), solution.i, solution.j, solution.descriptor(), &info);
-
-					   if (BLACS::myrank == 0)
-						   std::cout << "Solved a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesvx." << endl << "Return code was: " << info << endl << std::endl;
+					   if (info == 0)
+					   {
+						   if (BLACS::myrank == 0)
+							   std::cout << "Solved a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesv." << endl << "pxgesv returned successfully" << endl << std::endl;
+					   }
+					   else
+					   {
+						   if (BLACS::myrank == 0)
+							   std::cout << "Failed to solve a " << matrixLU.rows() << " x " << matrixLU.cols() << " problem with " << solution.cols() << " rhs using pxgesv." << endl << "pxgesv returned the following error code: " << info << endl << std::endl;
+					   }
 
 		//A.printDetails();
 		//B.printDetails();

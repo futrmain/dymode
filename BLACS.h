@@ -26,7 +26,7 @@ namespace peigen
 			void Cdgerv2d(int, int, int, double*, int, int, int);
 			void Cdgesd2d(int, int, int, double*, int, int, int);
 			int Cblacs_pnum(int ctxt, int prow, int pcol);
-			inline int numroc_(int* s, int* sblock, int* proc, int* origin, int* nproc);
+			int numroc_(int* s, int* sblock, int* proc, int* origin, int* nproc);
 			inline int peigen_numroc(int s, int sblock, int proc, int origin, int nproc)
 			{ // Overload to be able to pass by value // FIXME there probably already is a C-style numroc in MKL
 				return numroc_(&s, &sblock, &proc, &origin, &nproc);
@@ -72,7 +72,7 @@ namespace peigen
 		MPI::Intracomm COMM_ACTIVE;
 
 		// Constants that can be passed to stupid FORTRAN by reference
-		extern int izero = 0;
+		int izero;
 		int ione = 1;
 		double dzero = 0.;
 		double done = 1;
@@ -82,6 +82,13 @@ namespace peigen
 		double *dONE ;
 		double *dZERO ;
 
+		// Crashes happen when non-grid ranks call functions involving the BLACS context, such as Cblacs_pnum,
+		// so we have our own version. 
+		// Cblacs_pnum is better to use when possible because it checks negative values and all.
+		inline int peigen_pnum(int prow, int pcol)
+		{
+			return prow * grid_cols + pcol;
+		}
 
 		inline void init(int numtasks)
 		{
@@ -164,7 +171,9 @@ namespace peigen
 			delete dZERO;
 			delete dONE;
 
-			Cblacs_gridexit(ctxt);
+			// Crashes happen when a non-grid rank calls a function involving the context.
+			if (active)
+				Cblacs_gridexit(ctxt);
 			Cblacs_exit(1 /*program will continue, call MPI::finalize after*/);
 		}
 

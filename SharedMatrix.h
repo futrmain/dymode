@@ -11,35 +11,35 @@ namespace peigen
 	template <typename MatrixType>
 	class SharedMatrix
 	{
-	protected:
+	private:
 		typedef typename MatrixType::Scalar Scalar;
 		typedef MatrixType EigenMType;
 
 		int nrows, ncols;
-		
-		int desc[9];
+
 
 	public:
+		int desc[9];
 		MatrixType local_matrix;
 		MatrixType global_matrix;
 
 		bool use_transpose;
-		int i,j,x,y;
+		int i, j, x, y;
 		int nrblock, ncblock;
 
-		Scalar *localData() {return local_matrix.data();}
-		Scalar *globalData() {return global_matrix.data();}
-		inline int rows() const {return nrows;}
-		inline int cols() const {return ncols;}
-		inline int rblock() const {return nrblock;}
-		inline int cblock() const {return ncblock;}
-		inline int *descriptor() {return desc;}
+		Scalar *localData() { return local_matrix.data(); }
+		Scalar *globalData() { return global_matrix.data(); }
+		inline int rows() const { return nrows; }
+		inline int cols() const { return ncols; }
+		inline int rblock() const { return nrblock; }
+		inline int cblock() const { return ncblock; }
+		inline int *descriptor() { return desc; }
 
 		// Constructors
 		SharedMatrix();
 		SharedMatrix(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock);
-		SharedMatrix(int global_M, int global_N, char init, int rBlockSize, int cBlockSize); 
-		
+		SharedMatrix(int global_M, int global_N, char init, int rBlockSize, int cBlockSize);
+
 		// Copy constructor
 		SharedMatrix(const SharedMatrix<MatrixType> &other);
 		SharedMatrix(Sharedprod<MatrixType> prod);
@@ -48,10 +48,11 @@ namespace peigen
 		~SharedMatrix<MatrixType>() {}
 
 		// Initializers
-		static SharedMatrix<MatrixType> Ones(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock) { return SharedMatrix<MatrixType>(global_M, global_N, 'o', rBlockSize, cBlockSize); } 
-		static SharedMatrix<MatrixType> Zeros(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock) { return SharedMatrix<MatrixType>(global_M, global_N, 'z', rBlockSize, cBlockSize); } 
-		static SharedMatrix<MatrixType> Proc(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock) { return SharedMatrix<MatrixType>(global_M, global_N, 'p', rBlockSize, cBlockSize); } 
-	
+		static SharedMatrix<MatrixType> Ones(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock) { return SharedMatrix<MatrixType>(global_M, global_N, 'o', rBlockSize, cBlockSize); }
+		static SharedMatrix<MatrixType> Zeros(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock) { return SharedMatrix<MatrixType>(global_M, global_N, 'z', rBlockSize, cBlockSize); }
+		static SharedMatrix<MatrixType> Proc(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock) { return SharedMatrix<MatrixType>(global_M, global_N, 'p', rBlockSize, cBlockSize); }
+		static SharedMatrix<MatrixType> Eye(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock) { return SharedMatrix<MatrixType>(global_M, global_N, 'i', rBlockSize, cBlockSize); }
+
 		// Members
 		void resize(int global_M, int global_N, int rBlockSize = BLACS::rblock, int cBlockSize = BLACS::cblock);
 		void printDetails();
@@ -73,7 +74,7 @@ namespace peigen
 
 			SharedMatrix<MatrixType>& P = *this;
 
-			assert(((A.y == B.x) && (B.y == P.y ) && (A.x == P.x)) && "Multiplying matrices of different size");
+			assert(((A.y == B.x) && (B.y == P.y) && (A.x == P.x)) && "Multiplying matrices of different size");
 
 			// Define submatrices
 			int iA = A.i;
@@ -83,7 +84,7 @@ namespace peigen
 			int iP = P.i;
 			int jP = P.j;
 
-			
+
 			PBLAS::pxgemm(opA, opB, A.x, B.y, A.y, alpha,
 				A.localData(), iA, jA, A.descriptor(),		// matrix A
 				B.localData(), iB, jB, B.descriptor(),	// B
@@ -97,23 +98,29 @@ namespace peigen
 		// FIXME .block() does not work on empty matrices...
 		MatrixType localBlock()
 		{
-			int i_loc = 0;
-			while (BLACS::indxl2g(i_loc, this->rblock(), BLACS::grid_rows, BLACS::myrow) < this->i - 1)
-				++i_loc;
+		  int i_loc = 0;
+		  while (BLACS::indxl2g(i_loc, this->rblock(), BLACS::grid_rows, BLACS::myrow) < this->i - 1
+			 && i_loc < this->local_matrix.rows() - 1)
+		    ++i_loc;
 
-			int j_loc = 0;
-			while (BLACS::indxl2g(j_loc, this->cblock(), BLACS::grid_cols, BLACS::mycol) < this->j - 1)
-				++j_loc;
+		  int j_loc = 0;
+		  while (BLACS::indxl2g(j_loc, this->cblock(), BLACS::grid_cols, BLACS::mycol) < this->j - 1
+			 && j_loc < this->local_matrix.cols() - 1)
+		    ++j_loc;
 
-			int li_loc = this->local_matrix.rows() - i_loc;
-			while (BLACS::indxl2g(i_loc + li_loc, this->rblock(), BLACS::grid_rows, BLACS::myrow) > this->i + this->x - 1)
-				--li_loc;
+		  int x_loc = this->local_matrix.rows() - 1;
+		  while (BLACS::indxl2g(x_loc, this->rblock(), BLACS::grid_rows, BLACS::myrow) > this->i - 1 + this->x - 1
+			 && x_loc > 0)
+		    --x_loc;
+		  x_loc = x_loc + 1 - i_loc;
 
-			int lj_loc = this->local_matrix.cols() - j_loc;
-			while (BLACS::indxl2g(j_loc + lj_loc, this->cblock(), BLACS::grid_cols, BLACS::mycol) > this->j + this->y - 1)
-				--lj_loc;
-
-			return this->local_matrix.block(i_loc, j_loc, li_loc, lj_loc);
+		  int y_loc = this->local_matrix.cols() - 1;
+		  while (BLACS::indxl2g(y_loc, this->cblock(), BLACS::grid_cols, BLACS::mycol) > this->j - 1 + this->y - 1 
+			 && y_loc>0)
+		    --y_loc;
+		  y_loc = y_loc + 1 - j_loc;
+		  
+		  return this->local_matrix.block(i_loc, j_loc, x_loc, y_loc);
 		}
 
 		// FIXME peigen needs a more elegant asDiagonal system to do this type of operations
@@ -140,7 +147,7 @@ namespace peigen
 			// Fetch the right coefficient for each column and multiply
 			for (int j = 0; j < local_matrix.cols(); ++j)
 			{
-				const int g = BLACS::indxl2g(j, evectors.cblock(), BLACS::grid_cols, BLACS::mycol);
+				const int g = BLACS::indxl2g(j, (*this).cblock(), BLACS::grid_cols, BLACS::mycol);
 				local_matrix.col(j).noalias() = local_matrix.col(j) * factors(g);
 			}
 
@@ -153,55 +160,40 @@ namespace peigen
 		*/
 		SharedMatrix<MatrixType> & ColScale(SharedMatrix<MatrixType> factors)
 		{
-			assert((factors.cols() == 1 && factors.rows() == ncols) || (factors.rows() == 1 && factors.cols() == ncols) && "The size of factors does not match the number of columns in the global matrix.");
+			assert(factors.cols() == 1 && factors.rows() == ncols && "The size of factors does not match the number of columns in the global matrix.");
 
-			// Make sure factors is a vertical vector
-			if (factors.cols() > 1)
-				factors.transpose();
-
-
-			// Step 1: Form D := diag(factors)
-			// Replicate factors horizontally
-			SharedMatrix<MatrixType> D = factors * SharedMatrix<MatrixType>(1, ncols, 'o', 1, ncblock);
-
-			// Nullify non-diagonal coefficients
-			for (int i = 0; i < D.local_matrix.rows(); ++i)
+			factors.gather(0);		
+			MatrixType factors_global(factors.rows(), 1);
+			if (BLACS::myrank == 0)
 			{
-				const int gi = BLACS::indxl2g(i, D.rblock(), BLACS::grid_rows, BLACS::myrow);
-				for (int j = 0; j < D.local_matrix.cols(); ++j)
-				{
-					const int gj = BLACS::indxl2g(j, D.cblock(), BLACS::grid_cols, BLACS::mycol);
-
-					if (gi != gj)
-					{
-						D.local_matrix(i, j) = 0;
-					}
-				}
+				factors_global = factors.global_matrix;
+			}
+			BLACS::COMM_ACTIVE.Bcast(factors_global.data(), factors_global.rows(), MPI_type<typename MatrixType::Scalar>(), 0);
+			if (BLACS::myrank == 0)
+			{
+				factors.global_matrix.resize(0, 0);
 			}
 
-			// Step 2: Multiply *this by D
-			*this = *this * D;
-			
 			//std::cout << "DIAGONAL MATRIX ***~~~****~~~****~~" << std::endl << *this << std::endl << std::endl;
-			return *this;
+			return ColScale(factors_global);
 		}
 
 
 
 		// Operators
-		SharedMatrix<MatrixType> &operator=(SharedMatrix<MatrixType> &other)
+		SharedMatrix<MatrixType> &operator=(const SharedMatrix<MatrixType> &other)
 		{
 			nrows = other.nrows;
-			ncols = other.ncols; 
+			ncols = other.ncols;
 			i = other.i;
 			j = other.j;
 			x = other.x;
 			y = other.y;
-			nrblock = other.nrblock; 
+			nrblock = other.nrblock;
 			ncblock = other.ncblock;
 			local_matrix = other.local_matrix;
 			std::copy(other.desc, other.desc + 9, desc);
-			other.clear();
+			//other.clear();
 			return *this;
 		}
 
@@ -209,12 +201,12 @@ namespace peigen
 		{
 			SharedMatrix<MatrixType>  P = prod.eval();
 			nrows = P.nrows;
-			ncols = P.ncols; 
+			ncols = P.ncols;
 			i = P.i;
 			j = P.j;
 			x = P.x;
 			y = P.y;
-			nrblock = P.nrblock; 
+			nrblock = P.nrblock;
 			ncblock = P.ncblock;
 			local_matrix = P.local_matrix;
 			std::copy(P.desc, P.desc + 9, desc);
@@ -229,33 +221,33 @@ namespace peigen
 
 		// Transformations
 		SharedMatrix<MatrixType> & transpose() {
-			use_transpose = !use_transpose; 
-			std::swap(x,y); 
+			use_transpose = !use_transpose;
+			std::swap(x, y);
 			std::swap(nrblock, ncblock);
 			return *this;
 		}
 
 		SharedMatrix<MatrixType> transposeInPlace() {
-			std::swap(x,y); 
+			std::swap(x, y);
 			std::swap(nrblock, ncblock);
 			std::swap(nrows, ncols);
 			local_matrix.transposeInPlace();
 			return *this;
 		}
 
-		SharedMatrix<MatrixType> & block(int bi, int bj, int bx, int by) 
+		SharedMatrix<MatrixType> & block(int bi, int bj, int bx, int by)
 		{
 			//assert((((bi+bx) <= x)&&((by+bj) <= y)) && "Taking a block that is too large");
-			i = bi+i;
+			i = bi + i;
 			//std::cout << " j = " << j << ", bj = " << bj << std::endl;
-			j = bj+j;
+			j = bj + j;
 			//std::cout << " j = " << j << std::endl;
 			x = bx;
 			y = by;
 			return *this;
 		}
 
-		SharedMatrix<MatrixType> & clear() 
+		SharedMatrix<MatrixType> & clear()
 		{
 			if (use_transpose)
 				transpose();
@@ -319,10 +311,10 @@ namespace peigen
 
 		BLACS::descinit_(desc, &nrows, &ncols, &nrblock, &ncblock, BLACS::iZERO, BLACS::iZERO, &(BLACS::ctxt), &m, &info);
 
-		if (info!=0)
+		if (info != 0)
 		{
-			std::cout << "descinit return error code: " << info  << ", on process " << BLACS::myrank << std::endl;
-			std::cout << "mn, llda on " << BLACS::myrank << " is " <<m <<", size is " << local_matrix.rows() <<"x"<<local_matrix.cols()<< ", " <<BLACS::numroc_(&nrows, &nrblock, &(BLACS::myrow), BLACS::iZERO, &(BLACS::grid_rows)) <<endl <<flush;
+			std::cout << "descinit return error code: " << info << ", on process " << BLACS::myrank << std::endl;
+			std::cout << "mn, llda on " << BLACS::myrank << " is " << m << ", size is " << local_matrix.rows() << "x" << local_matrix.cols() << ", " << BLACS::numroc_(&nrows, &nrblock, &(BLACS::myrow), BLACS::iZERO, &(BLACS::grid_rows)) << endl << flush;
 		}
 	}
 
@@ -355,12 +347,12 @@ namespace peigen
 			break;
 		case 'i':	//identity
 			local_matrix = MatrixType::Zero(m, n);
-			for (int k=0; k < min(global_M, global_N); ++k)
+			for (int k = 0; k < min(global_M, global_N); ++k)
 			{
 				if ((BLACS::myrow == BLACS::indxg2p(k, rBlockSize, BLACS::grid_rows)) && (BLACS::mycol == BLACS::indxg2p(k, cBlockSize, BLACS::grid_cols)))
-					{
+				{
 					local_matrix(BLACS::indxg2l(k, rBlockSize, BLACS::grid_rows), BLACS::indxg2l(k, cBlockSize, BLACS::grid_cols)) = 1;
-					}				
+				}
 			}
 			break;
 		}
@@ -371,13 +363,13 @@ namespace peigen
 
 		BLACS::descinit_(desc, &nrows, &ncols, &nrblock, &ncblock, BLACS::iZERO, BLACS::iZERO, &(BLACS::ctxt), &m, &info);
 
-		if (info!=0)
+		if (info != 0)
 		{
-			std::cout << "descinit return error code: " << info  << ", on process " << BLACS::myrank << std::endl;
-			std::cout << "mn, llda on " << BLACS::myrank << " is " <<m <<", size is " << local_matrix.rows() <<"x"<<local_matrix.cols()<< ", " <<BLACS::numroc_(&nrows, &nrblock, &(BLACS::myrow), BLACS::iZERO, &(BLACS::grid_rows)) <<endl <<flush;
+			std::cout << "descinit return error code: " << info << ", on process " << BLACS::myrank << std::endl;
+			std::cout << "mn, llda on " << BLACS::myrank << " is " << m << ", size is " << local_matrix.rows() << "x" << local_matrix.cols() << ", " << BLACS::numroc_(&nrows, &nrblock, &(BLACS::myrow), BLACS::iZERO, &(BLACS::grid_rows)) << endl << flush;
 		}
 	}
-	
+
 
 
 
@@ -399,8 +391,8 @@ namespace peigen
 		use_transpose = false;
 		SharedMatrix<MatrixType>  P = prod.eval();
 		nrows = x = P.nrows;
-		ncols = y = P.ncols; 
-		nrblock = P.nrblock; 
+		ncols = y = P.ncols;
+		nrblock = P.nrblock;
 		ncblock = P.ncblock;
 		local_matrix = P.local_matrix;
 		std::copy(P.desc, P.desc + 9, desc);
@@ -416,20 +408,20 @@ namespace peigen
 
 	// cout overload
 	template <typename MatrixType>
-	std::ostream& operator<<( std::ostream& os, const SharedMatrix<MatrixType>& M )
+	std::ostream& operator<<(std::ostream& os, const SharedMatrix<MatrixType>& M)
 	{
 		/* Printing the global matrix */
 		for (int r = 0; r < M.rows(); r++)
 		{
-			for(int cb = 0; cb < ceil((double)M.cols()/M.cblock()); cb++)
+			for (int cb = 0; cb < ceil((double)M.cols() / M.cblock()); cb++)
 			{
-				int rb = floor((double)r/M.rblock()) ;
-				if((BLACS::myrow==rb%BLACS::grid_rows) && (BLACS::mycol==cb%BLACS::grid_cols))
+				int rb = floor((double)r / M.rblock());
+				if ((BLACS::myrow == rb%BLACS::grid_rows) && (BLACS::mycol == cb%BLACS::grid_cols))
 				{
-					int i,j,l;
-					i = M.rblock()*floor(r/(BLACS::grid_rows*M.rblock())) + r%M.rblock();
-					j = M.cblock() * floor(cb/BLACS::grid_cols);
-					l = min(M.cblock(), M.cols()-cb*M.cblock());
+					int i, j, l;
+					i = M.rblock()*floor(r / (BLACS::grid_rows*M.rblock())) + r%M.rblock();
+					j = M.cblock() * floor(cb / BLACS::grid_cols);
+					l = min(M.cblock(), M.cols() - cb*M.cblock());
 					os << M.local_matrix.block(i, j, 1, l) << "\t" << flush;
 				}
 				BLACS::Cblacs_barrier(BLACS::ctxt, "All");
@@ -463,7 +455,7 @@ namespace peigen
 		// Size of the data on the local process
 		int m = BLACS::numroc_(&nrows, &nrblock, &(BLACS::myrow), BLACS::iZERO, &(BLACS::grid_rows));
 		int n = BLACS::numroc_(&ncols, &ncblock, &(BLACS::mycol), BLACS::iZERO, &(BLACS::grid_cols));
-		
+
 		local_matrix.resize(m, n);
 
 		// Finally fill in the BLACS array descriptor
@@ -472,9 +464,9 @@ namespace peigen
 
 		BLACS::descinit_(desc, &nrows, &ncols, &nrblock, &ncblock, BLACS::iZERO, BLACS::iZERO, &(BLACS::ctxt), &m, &info);
 
-		if (info!=0)
+		if (info != 0)
 		{
-			std::cout << "descinit return error code: " << info  << ", on process " << BLACS::myrank << std::endl;
+			std::cout << "descinit return error code: " << info << ", on process " << BLACS::myrank << std::endl;
 		}
 	}
 
@@ -485,10 +477,10 @@ namespace peigen
 	{
 		if (BLACS::ROOT)
 			std::cout << "My global size is " << nrows << " x " << ncols << endl
-			<< "My block size is " << i << ","<< j << "\t"<< x <<","<< y << endl
+			<< "My block size is " << i << "," << j << "\t" << x << "," << y << endl
 			<< "My blocking factors are " << nrblock << " and " << ncblock << endl
 			<< "I am " << use_transpose << " transposed" << endl
-			<< "My descriptor values are: " << endl 
+			<< "My descriptor values are: " << endl
 			<< "dense matrix " << desc[0] << endl
 			<< "BLACS context " << desc[1] << endl
 			<< "m " << desc[2] << endl
@@ -504,12 +496,16 @@ namespace peigen
 
 	template <typename MatrixType>
 	Sharedprod<MatrixType> operator*(SharedMatrix<MatrixType> a, SharedMatrix<MatrixType> b)
-	{return Sharedprod<MatrixType>(a, b);}
+	{
+		return Sharedprod<MatrixType>(a, b);
+	}
 
 	template <typename MatrixType>
 	Sharedprod<MatrixType> operator*(Sharedprod<MatrixType> p, SharedMatrix<MatrixType> a)
-	{SharedMatrix<MatrixType> partial_result = p.eval();
-	return Sharedprod<MatrixType>(partial_result, a);}
+	{
+		SharedMatrix<MatrixType> partial_result = p.eval();
+		return Sharedprod<MatrixType>(partial_result, a);
+	}
 
 	// MPI gather / dispatch
 	template <typename Derived>
@@ -528,7 +524,7 @@ namespace peigen
 	template <typename MatrixType>
 	void SharedMatrix<MatrixType>::gather(int sink)
 	{
-		if (BLACS::myrank==sink)
+		if (BLACS::myrank == sink)
 		{
 			//cout << "the sink has started gathering" << endl;
 			// Create a matrix of buffer-matrices to receive into
@@ -558,19 +554,19 @@ namespace peigen
 			/* Reorder the block-cycliced buffer into the global matrix */
 			global_matrix.resize(nrows, ncols);
 
-			for (int rb = 0; rb < ceil((double)nrows/nrblock); rb++)
+			for (int rb = 0; rb < ceil((double)nrows / nrblock); rb++)
 			{
-				for(int cb = 0; cb < ceil((double)ncols/ncblock); cb++)
+				for (int cb = 0; cb < ceil((double)ncols / ncblock); cb++)
 				{
-					int roffset,coffset,_nrows,_ncols;
+					int roffset, coffset, _nrows, _ncols;
 					roffset = nrblock * floor(rb / BLACS::grid_rows);
 					coffset = ncblock * floor(cb / BLACS::grid_cols);
-					_nrows = min(nrblock, nrows-rb*nrblock);
-					_ncols = min(ncblock, ncols-cb*ncblock);
+					_nrows = min(nrblock, nrows - rb*nrblock);
+					_ncols = min(ncblock, ncols - cb*ncblock);
 
 					//cout << "rb-cb: " << rb<<"-"<<cb << ", nrblock-ncblock: " << nrblock<<"-"<<ncblock << ", _nrows-_ncols: " << _nrows<<"-"<<_ncols << ", roffset-coffset: " << roffset<<"-"<<coffset << endl;
 
-					global_matrix.block(rb*nrblock, cb*ncblock,  _nrows, _ncols) = 
+					global_matrix.block(rb*nrblock, cb*ncblock, _nrows, _ncols) =
 						buffer(rb%BLACS::grid_rows, cb%BLACS::grid_cols).block(roffset, coffset, _nrows, _ncols);
 				}
 			}
@@ -588,7 +584,7 @@ namespace peigen
 	void SharedMatrix<MatrixType>::dispatch(int source, int rBlockSize, int cBlockSize)
 	{
 		int size[2];
-		if (BLACS::myrank==source)
+		if (BLACS::myrank == source)
 		{
 			size[0] = global_matrix.rows();
 			size[1] = global_matrix.cols();
@@ -598,7 +594,7 @@ namespace peigen
 		//cout << "size " << size[0] << " " << size[1] << endl;
 		resize(size[0], size[1], rBlockSize, cBlockSize);
 
-		if (BLACS::myrank==source)
+		if (BLACS::myrank == source)
 		{
 			// Prepare a send buffer
 			Matrix<MatrixType, Dynamic, Dynamic> buffer(BLACS::grid_rows, BLACS::grid_cols);
@@ -612,20 +608,20 @@ namespace peigen
 				}
 			}
 
-			for (int rb = 0; rb < ceil((double)nrows/nrblock); rb++)
+			for (int rb = 0; rb < ceil((double)nrows / nrblock); rb++)
 			{
-				for(int cb = 0; cb < ceil((double)ncols/ncblock); cb++)
+				for (int cb = 0; cb < ceil((double)ncols / ncblock); cb++)
 				{
 					//cout << "rb cb  " << rb << " " << cb << endl;
-					int roffset,coffset,_nrows,_ncols;
+					int roffset, coffset, _nrows, _ncols;
 					roffset = nrblock * floor(rb / BLACS::grid_rows);
 					coffset = ncblock * floor(cb / BLACS::grid_cols);
-					_nrows = min(nrblock, nrows-rb*nrblock);
-					_ncols = min(ncblock, ncols-cb*ncblock);
+					_nrows = min(nrblock, nrows - rb*nrblock);
+					_ncols = min(ncblock, ncols - cb*ncblock);
 					//cout << "roffset, coffset, nrows, ncols " << roffset<< coffset<< nrows<< ncols << endl;
 					//cout << "rb*rblock, cb*cblock,  nrows, ncols " << rb*rblock<< " " <<cb*cblock << endl;
 					buffer(rb%BLACS::grid_rows, cb%BLACS::grid_cols).block(roffset, coffset, _nrows, _ncols) =
-						global_matrix.block(rb*nrblock, cb*ncblock,  _nrows, _ncols);			
+						global_matrix.block(rb*nrblock, cb*ncblock, _nrows, _ncols);
 				}
 			}
 			for (int proc_row = 0; proc_row < BLACS::grid_rows; proc_row++)
@@ -633,7 +629,7 @@ namespace peigen
 				for (int proc_col = 0; proc_col < BLACS::grid_cols; proc_col++)
 				{
 					int pid = BLACS::Cblacs_pnum(BLACS::ctxt, proc_row, proc_col);
-					if (pid != source)				
+					if (pid != source)
 					{
 						BLACS::COMM_ACTIVE.Send(buffer(proc_row, proc_col).data(), buffer(proc_row, proc_col).size(), MPIType(), pid, 1);
 					}
@@ -650,7 +646,7 @@ namespace peigen
 		}
 
 		// free some memory
-		global_matrix.resize(0,0);	//technically only source should do that, but whatever
+		global_matrix.resize(0, 0);	//technically only source should do that, but whatever
 	}
 
 
