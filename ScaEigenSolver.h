@@ -22,7 +22,7 @@ namespace peigen
 			return MPI::DOUBLE_COMPLEX;
 		}
 
-		ScaEigenSolver(const SharedMatrix<MatrixType>& A, const bool computeEigenVectors = true, const EigenMethod method = EigSchur);
+		ScaEigenSolver(const SharedMatrix<MatrixType>& A, const bool computeEigenVectors = true, const EigenMethod method = EigSchur, const bool IntermediateResiduals = false);
 
 		inline SharedMatrix<Matrix<complex<RealScalar>, Dynamic, Dynamic>> eigenVectors() { return evectors; }
 		inline Matrix<complex<RealScalar>, Dynamic, Dynamic> eigenValues() { return evalues; }
@@ -41,23 +41,21 @@ namespace peigen
 			R.pgemm(1.0, original.template cast<complex<double> >(), evectors, -1.0);
 
 			// Compute local highest residual
-			return R.local_matrix.cols() > 0 ? R.local_matrix.cwiseAbs().maxCoeff() : -1;
+			return (R.local_matrix.rows() * R.local_matrix.cols()) > 0 ? R.local_matrix.cwiseAbs().maxCoeff() : -1;
 		}
 
 		RealScalar global_residual(SharedMatrix<MatrixType> original)
 		{
 			double r_loc = residual(original);
 			double r;
-
 			BLACS::COMM_ACTIVE.Allreduce(&r_loc, &r, 1, MPI::DOUBLE, MPI::MAX);
-
 			return r;
 		}
 
 	};
 
 	template <typename MatrixType>
-	ScaEigenSolver<MatrixType>::ScaEigenSolver(const SharedMatrix<MatrixType>& A, const bool computeEigenVectors, const EigenMethod method) : S(A), method_(method), evalues(Matrix<complex<RealScalar>, Dynamic, Dynamic>(min(A.rows(), A.cols()), 1))
+	ScaEigenSolver<MatrixType>::ScaEigenSolver(const SharedMatrix<MatrixType>& A, const bool computeEigenVectors, const EigenMethod method, bool IntermediateResiduals) : S(A), method_(method), evalues(Matrix<complex<RealScalar>, Dynamic, Dynamic>(min(A.rows(), A.cols()), 1))
 	{
 		assert(A.rows() == A.cols() && "CALLING EIGEN SOLVER ON NON SQUARE MATRIX");
 
@@ -69,6 +67,8 @@ namespace peigen
 		EigenSolver<MatrixType> eig;
 		if (method_ == EigSerial)
 		{
+			if (BLACS::ROOT)
+				cout << "Using Eigen (serial eigen solver)" << endl << "=================================" << endl;
 			S.gather(0);
 
 			if (BLACS::myrank == 0 )
@@ -76,10 +76,21 @@ namespace peigen
 		}
 		else
 		{
+			if (BLACS::ROOT)
+				cout << "Calling ScaLAPACK (Hessenberg reduction)" << endl << "========================================" << endl;
 			ScaHessenberg<MatrixType> hess(S, computeEigenVectors);
+
+			if (IntermediateResiduals)
+			{
+				double r_hess = hess.global_residual(S);
+				if (BLACS::myrank == 0)
+					cout << "Residual from Hessenberg reduction: " << r_hess << endl << flush;
+			}
 
 			if (method_ == EigHess)
 			{
+				if (BLACS::ROOT)
+					cout << endl << "Using Eigen (Schur reduction)" << endl << "=============================" << endl;
 				SharedMatrix<MatrixType> H = hess.matrixH();
 				H.gather(0);
 				SharedMatrix<MatrixType> Q = hess.matrixQ();
@@ -90,6 +101,8 @@ namespace peigen
 			}
 			else if (method_ == EigSchur)
 			{
+				if (BLACS::ROOT)
+					cout << endl << "Calling ScaLAPACK (Schur reduction)" << endl << "===================================" << endl;
 				ScaSchur<MatrixType> schur(hess.matrixH(), hess.matrixQ(), computeEigenVectors, computeEigenVectors);
 
 				SharedMatrix<MatrixType> Z = schur.matrixZ();
