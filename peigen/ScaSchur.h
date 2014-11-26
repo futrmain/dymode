@@ -64,7 +64,6 @@ namespace peigen
 		MatrixXi iwork(liwork, 1);
 
 		//cout << "(" << BLACS::myrank << ") " << "Right here, Right now" << endl;
-		PBLAS::peigen_pxhseqr(job, compz, N, 1, N, T.localData(), T.desc, wr.data(), wi.data(), Z.localData(), Z.desc, work.data(), (int)lwork, iwork.data(), liwork, &info);
 		PBLAS::pxhseqr(job, compz, N, 1, N, T.localData(), T.desc, wr.data(), wi.data(), Z.localData(), Z.desc, work.data(), (int)lwork, iwork.data(), liwork, &info);
 		if (info != 0)
 			std::cout << "(" << BLACS::myrank << ") " << "had a problem computing Schur decomposition, return value was " << info << endl;
