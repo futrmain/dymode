@@ -27,7 +27,7 @@ namespace peigen
 	template <typename MatrixType>
 	ScaSchur<MatrixType>::ScaSchur(const SharedMatrix<MatrixType>& H, const SharedMatrix<MatrixType>& Q, bool computeSchur, bool computeVectors) : T(H), Z(Q), eigenvals(MatrixXcd(H.rows(), 1))
 	{
-		if (ROOT)
+		if (BLACS::ROOT)
 		{
 			std::cout << "Warning: the ScaLAPACK routine p*hseqr used for Schur reduction may not work in all ScaLAPACK implementation." << std::endl;
 		}
@@ -64,7 +64,6 @@ namespace peigen
 		MatrixXi iwork(liwork, 1);
 
 		//cout << "(" << BLACS::myrank << ") " << "Right here, Right now" << endl;
-		PBLAS::peigen_pxhseqr(job, compz, N, 1, N, T.localData(), T.desc, wr.data(), wi.data(), Z.localData(), Z.desc, work.data(), (int)lwork, iwork.data(), liwork, &info);
 		PBLAS::pxhseqr(job, compz, N, 1, N, T.localData(), T.desc, wr.data(), wi.data(), Z.localData(), Z.desc, work.data(), (int)lwork, iwork.data(), liwork, &info);
 		if (info != 0)
 			std::cout << "(" << BLACS::myrank << ") " << "had a problem computing Schur decomposition, return value was " << info << endl;
