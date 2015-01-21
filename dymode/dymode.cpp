@@ -397,7 +397,7 @@ int main(int argc, char* argv[])
 				if (BLACS::indxg2p(k, System.cblock(), BLACS::grid_cols) == BLACS::mycol)
 				{
 					int l = BLACS::indxg2l(k, System.cblock(), BLACS::grid_cols);
-					System.local_matrix.col(l) = 2 * X.local_matrix.col(l).imag();
+					System.local_matrix.col(l) = -2 * X.local_matrix.col(l).imag();
 				}
 			}
 			else // real eigenvalue
