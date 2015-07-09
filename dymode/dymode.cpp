@@ -349,6 +349,32 @@ int main(int argc, char* argv[])
 		/////*------------------------------    /DO AN EIGENVECTOR SOLUTION     ------------------------------*/
 		/////**************************************************************************************************/
 
+		/////**************************************************************************************************/
+		/////*----------------------------     COMPUTE THE RESCALED SPECTRUM     -----------------------------*/
+		/////**************************************************************************************************/
+
+		MatrixXd ScaledAmplitudes;
+		if (opt.sortMeth.stype == scaled)
+		{
+			if (ROOT)
+			{	cout << "Computing the rescaled spectrum...             " << endl;
+			}
+
+			SharedMatrix<MatrixXcd> ScaledModes = svd.matrixVt.transpose();
+			ScaledModes = ScaledModes.local_matrix * SIGplus;
+			ScaledModes = ScaledModes * X;
+
+			MatrixXd ScalingValues = ColumnNorm(ScaledModes);
+			ScaledModes.ColScale(ScalingValues.cwiseInverse);
+			ScaledModes = snaps.block(0, 0, snaps.rows(), snaps.cols() - 1) * ScaledModes;
+
+			ScaledAmplitudes = ColumnNorm(ScaledModes);
+		}
+		
+		/////**************************************************************************************************/
+		/////*----------------------------     /COMPUTE THE RESCALED SPECTRUM     ----------------------------*/
+		/////**************************************************************************************************/
+
 
 		/////**************************************************************************************************/
 		/////*------------------------------      DO A LINEAR SYSTEM SOLVE      ------------------------------*/
@@ -647,6 +673,24 @@ int main(int argc, char* argv[])
 				cout << "\tError, could not open " << opt.outdir + "eigenvalues.txt" << endl;
 			}
 
+
+			if (opt.sortMeth.stype == scaled)
+			{
+				cout << "Saving scaled spectrum...       ";
+				std::ofstream scaledfile(opt.outdir + "scaled_spectrum.txt");
+				scaledfile.precision(std::numeric_limits< double >::digits10);
+				if (scaledfile.is_open())
+				{
+					scaledfile << ScaledAmplitudes << '\n';
+					scaledfile.close();
+					cout << "\tDONE" << endl;
+				}
+				else
+				{
+					cout << "\tError, could not open " << opt.outdir + "scaled_spectrum.txt" << endl;
+				}
+			}
+
 			prof.toc("WriteLight", "\nLight data saved in (s): ");
 			cout << endl;
 		}
@@ -665,8 +709,18 @@ int main(int argc, char* argv[])
 		MatrixXd::Index i_mode, x_mode;
 		stringstream variables_gold;
 
+		MatrixXd SortingAmplitude:
+		if (opt.sortMeth.stype == scaled)
+		{
+			SortingAmplitude = ScaledAmplitudes;
+		}
+		else
+		{
+			SortingAmplitude = amplitudes;
+		}
+
 		//cout << BLACS::myrank << " amplitudes " << amplitudes << endl << endl;
-		ModeSort<MatrixXcd> sorted(Modes, lambdas, amplitudes, svd.singularValues, opt.sortMeth, opt.nmodes);
+		ModeSort<MatrixXcd> sorted(Modes, lambdas, SortingAmplitude, svd.singularValues, opt.sortMeth, opt.nmodes);
 		const MatrixXi indices = sorted.orderedIdx;
 
 		for (int m = 0; m < indices.cols(); ++m)

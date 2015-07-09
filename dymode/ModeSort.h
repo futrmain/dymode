@@ -4,7 +4,7 @@
 
 #include <boost/algorithm/string.hpp>
 
-enum sort_type { energy = 0 };
+enum sort_type { energy = 0, scaled };
 enum sort_order { ascend = 0, descend };
 
 class sort_method
@@ -34,9 +34,16 @@ public:
 		boost::split(input, method, boost::is_any_of(","));
 
 		// Get sort_type
-		if (input[0] == "energy")
+		if (input[0] == "energy" || "scaled")
 		{
-			stype = energy;
+			if (input[0] == "energy")
+			{
+				stype = energy;
+			}
+			else if (input[0] == "saled")
+			{
+				stype = scaled;
+			}
 			energy_ref = -11;
 			order = descend;
 			conjugates = false;
