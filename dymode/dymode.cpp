@@ -8,7 +8,7 @@
 
 // External dependencies
 #include "mpi.h"
-#include "mkl.h"
+//#include "mkl.h"
 
 #include <iostream>
 #include <fstream>
@@ -25,7 +25,7 @@ using namespace Eigen;
 using namespace peigen;
 
 // Dymode helper functions
-#include "ColumnSquaredNorm.h"
+#include "ColumnNorm.h"
 #include "H5inDMD.h"
 #include "GEOinDMD.h"
 #include "ModeSort.h"
@@ -593,7 +593,7 @@ int main(int argc, char* argv[])
 			cout << endl << "          SAVING DATA" << endl << "******************************" << endl;
 		/////**************************************************************************************************/
 		/////*------------------------------      Compute the mode's energy      -----------------------------*/
-		/////**************************************************************************************************/				
+		/////**************************************************************************************************/
 		if (ROOT)
 			cout << "Computing the modes' norm...";
 		prof.tic("Energy");
