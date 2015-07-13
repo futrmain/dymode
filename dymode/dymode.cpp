@@ -360,14 +360,14 @@ int main(int argc, char* argv[])
 			{	cout << "Computing the rescaled spectrum...             " << endl;
 			}
 
-			SharedMatrix<MatrixXcd> ScaledModes = svd.matrixVt.transpose().cast<std::complex<double> >();
+			SharedMatrix<MatrixXcd> ScaledModes = svd.matrixVt.cast<std::complex<double> >().transpose();
 			ScaledModes.local_matrix = ScaledModes.local_matrix * SIGplus;
 
-			ScaledModes = ScaledModes * X;
+			SharedMatrix<MatrixXcd> tmp = ScaledModes * X;
 
-			MatrixXd ScalingValues = ColumnNorm(ScaledModes);
-			ScaledModes.ColScale(ScalingValues.cwiseInverse().cast<std::complex<double> >());
-			ScaledModes = (snaps.cast<std::complex<double> >().block(0, 0, snaps.rows(), snaps.cols() - 1)) * ScaledModes;
+			MatrixXd ScalingValues = ColumnNorm(tmp);
+			tmp.ColScale(ScalingValues.cast<std::complex<double> >().cwiseInverse());
+			ScaledModes = (snaps.cast<std::complex<double> >().block(0, 0, snaps.rows(), snaps.cols() - 1)) * tmp;
 
 			ScaledAmplitudes = ColumnNorm(ScaledModes);
 		}
