@@ -360,13 +360,14 @@ int main(int argc, char* argv[])
 			{	cout << "Computing the rescaled spectrum...             " << endl;
 			}
 
-			SharedMatrix<MatrixXcd> ScaledModes = svd.matrixVt.transpose();
-			ScaledModes = ScaledModes.local_matrix * SIGplus;
+			SharedMatrix<MatrixXcd> ScaledModes = svd.matrixVt.transpose().cast<std::complex<double> >();
+			ScaledModes.local_matrix = ScaledModes.local_matrix * SIGplus;
+
 			ScaledModes = ScaledModes * X;
 
 			MatrixXd ScalingValues = ColumnNorm(ScaledModes);
-			ScaledModes.ColScale(ScalingValues.cwiseInverse);
-			ScaledModes = snaps.block(0, 0, snaps.rows(), snaps.cols() - 1) * ScaledModes;
+			ScaledModes.ColScale(ScalingValues.cwiseInverse().cast<std::complex<double> >());
+			ScaledModes = (snaps.cast<std::complex<double> >().block(0, 0, snaps.rows(), snaps.cols() - 1)) * ScaledModes;
 
 			ScaledAmplitudes = ColumnNorm(ScaledModes);
 		}
@@ -709,7 +710,7 @@ int main(int argc, char* argv[])
 		MatrixXd::Index i_mode, x_mode;
 		stringstream variables_gold;
 
-		MatrixXd SortingAmplitude:
+		MatrixXd SortingAmplitude;
 		if (opt.sortMeth.stype == scaled)
 		{
 			SortingAmplitude = ScaledAmplitudes;

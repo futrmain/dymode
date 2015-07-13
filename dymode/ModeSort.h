@@ -40,7 +40,7 @@ public:
 			{
 				stype = energy;
 			}
-			else if (input[0] == "saled")
+			else if (input[0] == "scaled")
 			{
 				stype = scaled;
 			}
