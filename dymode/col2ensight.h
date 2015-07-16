@@ -64,6 +64,24 @@ void gold_print_values(MatrixXf values, geofilereader geo, FILE *pFile)
 	}
 } 
 
+inline Matrix<float, Dynamic, Dynamic> fillBuffer(SharedMatrix<MatrixXd> M, int j)
+{
+	Matrix<float, Dynamic, Dynamic> buff = M.local_matrix.col(j).cast<float>();
+
+	return buff;
+}
+
+inline Matrix<float, Dynamic, Dynamic> fillBuffer(SharedMatrix<MatrixXcd> M, int j)
+{
+	Matrix<float, Dynamic, Dynamic> buff(M.local_matrix.rows(), 2);
+
+	buff.col(0) = M.local_matrix.col(j).cwiseAbs().cast<float>();
+	buff.col(1) = M.local_matrix.col(j).imag().binaryExpr(M.local_matrix.col(j).real(), std::ptr_fun(atan2<double, double>)).cast<float>();
+
+	return buff;
+}
+
+
 template<typename MatrixType>
 int col2ensight(SharedMatrix<MatrixType>& Modes, int col, string name, bool complex_values, geofilereader georead, phdfp::datasetreader dreader, options opt)
 {
@@ -92,17 +110,7 @@ int col2ensight(SharedMatrix<MatrixType>& Modes, int col, string name, bool comp
 			}
 		}
 
-		Matrix<float, Dynamic, 2> SendBuffer(Modes.local_matrix.rows(), nc);
-
-		if (complex_values)
-		{
-			SendBuffer.col(0) = Modes.local_matrix.col(j_loc).cwiseAbs().cast<float>();
-			SendBuffer.col(1) = Modes.local_matrix.col(j_loc).imag().binaryExpr(Modes.local_matrix.col(j_loc).real(), std::ptr_fun(atan2<double, double>)).cast<float>();
-		}
-		else
-		{
-			SendBuffer.col(0) = Modes.local_matrix.real().cast<float>();
-		}
+		Matrix<float, Dynamic, Dynamic> SendBuffer = fillBuffer(Modes, j_loc);
 		
 		int col_root = BLACS::Cblacs_pnum(BLACS::ctxt, 0, BLACS::mycol);
 		BLACS::COMM_ACTIVE.Send(SendBuffer.data(), SendBuffer.rows() * SendBuffer.cols(), MPI::FLOAT, col_root, 1 /*tag*/);
