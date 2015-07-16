@@ -29,7 +29,7 @@ public:
 		try
 		{
 			// ************* Reader and Description ************* //
-			TCLAP::CmdLine input("Dymode, copyrighted for money", ' ', "0.1a");
+			TCLAP::CmdLine input("Dymode", ' ', "1.0.1");
 
 			
 
