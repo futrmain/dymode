@@ -18,6 +18,7 @@ public:
 	bool dispResiduals;
 	peigen::EigenMethod eigSolver;
 	int nmodes;
+	int npod;
 	string geofile;
 	int nsingulars;
 	int sblock;
@@ -56,8 +57,11 @@ public:
 			// Method to use in ScaEigenSolver
 			TCLAP::ValueArg<string> eigArg("e", "eigen", "String describing the level of parallelism to use when solving the eigen value problem. Possible values are \"EigSerial\": the whole problem is solved in serial; \"EigHess\": Hessenberg reduction is done in parallel, the rest is done in serial; \"EigSchur\": Everything is computed in parallel. This is bugged in MKL 11.", false /*req*/, "EigHess"/*default*/, "string", input);
 
-			// Number of modes to print out
-			TCLAP::ValueArg<int> nmodesArg("m", "modes", "Number of modes to save to disk", false /*req*/, 2/*default*/, "int", input);
+			// Number of DMD modes to print out
+			TCLAP::ValueArg<int> nmodesArg("m", "dmd", "Number of DMD modes to save to disk", false /*req*/, 1/*default*/, "int", input);
+
+			// Number of POD modes to print out
+			TCLAP::ValueArg<int> npodArg("z", "pod", "Number of POD modes to save to disk", false /*req*/, 1/*default*/, "int", input);
 
 			// Geometry file from Ensight Gold
 			TCLAP::ValueArg<string> geoArg("g", "geo", "Geometry file from Ensight", false /*req*/, ""/*default*/, "string", input);
@@ -104,6 +108,8 @@ public:
 				eigSolver = EigHess;
 
 			nmodes = nmodesArg.getValue();
+
+			npod = npodArg.getValue();
 
 			geofile = geoArg.getValue();
 

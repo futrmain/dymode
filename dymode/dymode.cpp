@@ -36,7 +36,7 @@ using namespace phdfp;
 #endif
 
 #include "col2ensight.h"
-
+#include "row2text.h"
 
 
 
@@ -189,6 +189,84 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 		/////*------------------------------      /Print singular values      --------------------------------*/
 		/////**************************************************************************************************/
+
+
+		/////**************************************************************************************************/
+		/////*---------------------------       PRINT SOME POD MODES TO HDF5      ----------------------------*/
+		/////**************************************************************************************************/
+		if (opt.npod > 0)
+		{
+			prof.tic("SavePODModes");
+			stringstream variables_gold;
+			MatrixXd TimeSeries;
+
+			if (BLACS::myrank == 0)
+			{
+				TimeSeries.resize(svd.matrixVt.cols(), opt.npod);
+			}
+
+			for (int m = 0; m < opt.npod; ++m)
+			{
+
+				BLACS::COMM_ACTIVE.Barrier();
+
+				stringstream modename;
+				modename << "pod" << setfill('0') << setw(6) << m;
+				col2ensight(svd.matrixU, m, modename.str(), false, georead, dreader, opt);
+
+				// Add all modes/variables to the list of variables
+				if (BLACS::myrank == 0)
+				{
+					for (string var : opt.variables)
+					{
+						if (!(var == "null"))
+						{
+							variables_gold << "scalar per element: " << var << m << " " << modename.str() << "." << var << endl;
+						}
+					}
+				}
+
+				MatrixXd times = row2single(svd.matrixVt, m);
+				if (BLACS::myrank == 0)
+				{
+					TimeSeries.col(m) = times;
+				}
+
+			}
+
+			// Write the .case file
+			if (BLACS::myrank == 0)
+			{
+				vector<string> geopath;
+				boost::split(geopath, opt.geofile, boost::is_any_of("/\\"));
+
+				std::ofstream ofs(opt.outdir + "pod.case", std::ofstream::out);
+				ofs << "FORMAT" << endl
+					<< "type: ensight gold" << endl
+					<< "GEOMETRY" << endl
+					<< "model: " << geopath.back() << endl
+					<< "VARIABLE" << endl
+					<< variables_gold.str()
+					<< "TIME" << endl
+					<< "time set: 1 \nnumber of steps: 1 \nfilename start number: 0 \nfilename increment: 1 \ntime values: \n0" << endl;
+				ofs.close();
+			}
+
+			// Write the time coefficients
+			if (BLACS::myrank == 0)
+			{
+				std::ofstream ofs(opt.outdir + "time_coeffs.txt", std::ofstream::out);
+				ofs.precision(std::numeric_limits< double >::digits10);
+				ofs << TimeSeries;
+				ofs.close();
+			}
+
+			prof.toc("SavePODModes");
+		}
+		/////**************************************************************************************************/
+		/////*----------------------------       /PRINT SOME POD MODES TO HDF5      --------------------------*/
+		/////**************************************************************************************************/
+
 
 		///////**************************************************************************************************/
 		///////*-----------------------------      DO B := Ut * S2 * V * SIG+     ------------------------------*/
@@ -644,7 +722,7 @@ int main(int argc, char* argv[])
 
 
 		/////**************************************************************************************************/
-		/////*------------------------------       PRINT SOME MODES TO HDF5      -----------------------------*/
+		/////*---------------------------       PRINT SOME DMD MODES TO HDF5      ----------------------------*/
 		/////**************************************************************************************************/
 		prof.tic("SaveModes");
 		BLACS::COMM_ACTIVE.Barrier();
