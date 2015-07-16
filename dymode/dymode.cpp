@@ -127,7 +127,9 @@ int main(int argc, char* argv[])
 			{
 				cout.precision(std::numeric_limits< double >::digits10);
 				int nsings = min((int)svd.singularValues.rows(), opt.nsingulars);
-				cout << "First " << nsings << " singular values: " << endl << svd.singularValues.col(0).head(nsings).transpose() << endl << endl << flush;
+				cout << "First " << nsings << " singular values: " << endl << svd.singularValues.col(0).head(nsings).transpose() << endl;
+				
+				cout << svd.singularValues.col(0).head(nsings).transpose() / svd.singularValues.col(0).sum() << endl << endl << flush;
 				std::cout.copyfmt(std::ios(NULL));
 			}
 		}
