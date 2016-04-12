@@ -42,11 +42,28 @@ using namespace phdfp;
 
 int main(int argc, char* argv[])
 {
+//cout << "hello! " << endl;
 	//int mkl_res = mkl_cbwr_set(MKL_CBWR_COMPATIBLE);
 	MPI::Init();
-
+//cout << "Howdy? "<<endl;
 	// Deal with input parameters
 	options opt(argc, argv);
+//cout << "Rock n roll " << endl;
+
+	cout << "filename: " << opt.filename << endl;
+	cout << "datasets: " << opt.variables[0] << endl;
+	cout << "n files: " << opt.nfiles << endl;
+	cout << "stride: " << opt.stride << endl;
+	cout << "block: " << opt.sblock << endl;
+	cout << "Eigen: " << opt.eigSolver << endl;
+	cout << "res: " << opt.dispResiduals << endl;
+	cout << "singulars: " << opt.nsingulars << endl;
+	cout << "outdir: " << opt.outdir << endl;
+	//cout << "sort: " << opt.sortMeth;
+	cout << "pod: " << opt.npod << endl;
+	cout << "dmd: " << opt.nmodes << endl;
+	
+//cout << "couillon "<<endl;
 
 	int rank, numtasks;
 	rank = MPI::COMM_WORLD.Get_rank();
