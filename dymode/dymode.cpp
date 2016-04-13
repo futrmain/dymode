@@ -26,7 +26,8 @@ using namespace peigen;
 
 // Dymode helper functions
 #include "ColumnNorm.h"
-#include "H5inDMD.h"
+//#include "H5inDMD.h"
+#include "H5import.h"
 #include "GEOinDMD.h"
 #include "ModeSort.h"
 #include "options.h"
@@ -82,7 +83,7 @@ int main(int argc, char* argv[])
 
 	prof.tic("Dymode");
 
-	geofilereader georead(opt.geofile);
+	//geofilereader georead(opt.geofile);
 
 	/////**************************************************************************************************/
 	/////*----------------------------------       READ THE DATA      ------------------------------------*/
@@ -96,8 +97,8 @@ int main(int argc, char* argv[])
 
 	datasetreader dreader(opt.nfiles, opt.filename);
 
-	dreader.read(opt.dataset, opt.variables);
-
+	dreader.read(opt.variables);
+//cout << "SUCCESS " <<endl;
 	SharedMatrix<MatrixXd> snaps(dreader.createShared(opt.sblock, opt.sblock, opt.stride));
 
 	if (ROOT)
@@ -231,7 +232,7 @@ int main(int argc, char* argv[])
 
 				stringstream modename;
 				modename << "pod" << setfill('0') << setw(6) << m;
-				col2ensight(svd.matrixU, m, modename.str(), false, georead, dreader, opt);
+				//col2ensight(svd.matrixU, m, modename.str(), false, georead, dreader, opt);
 
 				// Add all modes/variables to the list of variables
 				if (BLACS::myrank == 0)
@@ -775,7 +776,7 @@ int main(int argc, char* argv[])
 			{
 				stringstream modename;
 				modename << "dmd" << setfill('0') << setw(6) << m;
-				col2ensight(Modes, i_mode, modename.str(), true, georead, dreader, opt);
+				//col2ensight(Modes, i_mode, modename.str(), true, georead, dreader, opt);
 				
 				// Add all modes/variables to the list of variables
 				if (BLACS::myrank == 0)

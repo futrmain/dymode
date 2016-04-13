@@ -32,7 +32,8 @@ using namespace peigen;
 
 // Dymode helper functions
 #include "ColumnNorm.h"
-#include "H5inDMD.h"
+//#include "H5inDMD.h"
+#include "H5import.h"
 #include "GEOinDMD.h"
 #include "ModeSort.h"
 #include "options.h"
