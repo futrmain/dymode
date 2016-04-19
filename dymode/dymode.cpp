@@ -32,6 +32,8 @@ using namespace peigen;
 #include "ModeSort.h"
 #include "options.h"
 
+#include <boost/math/constants/constants.hpp>
+
 using namespace phdfp;
 
 #endif

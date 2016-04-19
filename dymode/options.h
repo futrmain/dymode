@@ -25,6 +25,7 @@ public:
 	int sblock;
 	sort_method sortMeth;
 	string result;
+	double tstep;
 
 	options(int argc, char* argv[])
 	{
@@ -56,6 +57,15 @@ public:
 	cout << it->second.as<std::string>() << endl;
 }*/
 				filename = subnode["filename"].as<std::string>();
+
+				if(subnode["time-step"])
+				{
+					tstep = subnode["time-step"].as<double>();
+				}
+				else
+				{
+					tstep = 1;
+				}
 				//cout << filename << endl;
 
 				YAML::Node dsnode = subnode["datasets"];
