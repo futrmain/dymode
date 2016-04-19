@@ -128,6 +128,7 @@ namespace phdfp
 		{
 			int filenum = BLACS::myrank * floor(nfiles / BLACS::numproc) + min(BLACS::myrank, nfiles % BLACS::numproc) + f + 1;
 			string fname = filename(filenum);
+//cout << "(" << BLACS::myrank << ")  " << fname << endl;
 
 			int idx = 0;
 			dimension_r = 0;
@@ -195,7 +196,7 @@ namespace phdfp
 				sel.block[0] = snapshots_per_file(f, 0);
 				H5Sselect_hyperslab(virtual_filespace, H5S_SELECT_SET, sel.offset, sel.stride, sel.count, sel.block);
 			
-cout << "selected a block in virtual space " << sel.offset[0]<<","<<sel.offset[1] <<", " << sel.block[0]<<","<<sel.block[1] <<endl;
+//cout << "selected a block in virtual space " << sel.offset[0]<<","<<sel.offset[1] <<", " << sel.block[0]<<","<<sel.block[1] <<endl;
 				int filenum = BLACS::myrank * floor(nfiles / BLACS::numproc) + min(BLACS::myrank, nfiles % BLACS::numproc) + f + 1;	
 				string fname = filename(filenum);
 				//cout << fname << endl << flush;

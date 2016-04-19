@@ -99,8 +99,10 @@ public:
 		{
 			return energy_sort(eigenvalues, norm, method, NMAX);
 		}
-		else //... implement other types of sorting
-			return energy_sort(eigenvalues, norm, method, NMAX);
+		else if (method.stype == scaled)
+		{
+			return scaled_sort(eigenvalues, norm, method, NMAX);
+		}
 	}
 
 	MatrixXi energy_sort(const MatrixType& eigenvalues, const Matrix<typename MatrixType::RealScalar, Dynamic, Dynamic>& norm, const sort_method& method, const int& NMAX)
@@ -153,10 +155,91 @@ public:
 			std::partial_sort(v.begin(), v.begin() + NMAX, v.end(), less<pair<double, int>>());
 
 		MatrixXi indices(1, NMAX);
-		for (int i = 0; i < NMAX; ++i)
+
+int i = 0;
+bool reloop = true;
+		while (reloop)
 		{
-			indices(0, i) = v[i].second;
+//cout << "this, is, "<< v[i].first << ", " << v[i].second << endl;
+			if (v[i].first >= 0 && v[i].first != std::numeric_limits<double>::infinity())
+			{
+				indices(0, i) = v[i].second;
+			}
+			else
+			{
+				--i;
+				reloop = false;
+			}
+			++i;
+			if (i >= NMAX)
+				reloop = false;
+//cout << "indices: " << indices << endl;
 		}
+//cout << "i: " << i << endl;
+		indices.conservativeResize(1, i);
+//cout << "indices: " << indices << endl;
+
+
+		return indices;
+	}
+
+
+	MatrixXi scaled_sort(const MatrixType& eigenvalues, const Matrix<typename MatrixType::RealScalar, Dynamic, Dynamic>& norm, const sort_method& method, const int& NMAX)
+	{
+		vector<pair<double, int>> v(norm.cols());
+
+		for (int i = 0; i < norm.cols(); ++i)
+		{
+			v[i].second = i;
+
+			if (eigenvalues(i, 0).imag() < 0)
+			{
+				// Should we discard the mode ?
+				if (method.conjugates == false)
+				{
+					if (method.order == descend)
+						v[i].first = -1;
+					else
+						v[i].first = std::numeric_limits<double>::infinity();
+				}
+				else
+					v[i].first = norm(0, i);
+			}
+			else
+			{
+				v[i].first = norm(0, i);
+			}
+		}
+
+		if (method.order == descend)
+			std::partial_sort(v.begin(), v.begin() + NMAX, v.end(), greater<pair<double, int>>());
+		else
+			std::partial_sort(v.begin(), v.begin() + NMAX, v.end(), less<pair<double, int>>());
+
+		MatrixXi indices(1, NMAX);
+		int i = 0;
+		bool reloop = true;
+//cout << "indices orig: " << indices << endl;
+		while (reloop)
+		{
+//cout << "this, is, "<< v[i].first << ", " << v[i].second << endl;
+			if (v[i].first != -1 && v[i].first != std::numeric_limits<double>::infinity())
+			{
+				indices(0, i) = v[i].second;
+			}
+			else
+			{
+				--i;
+				reloop = false;
+			}
+			++i;
+			if (i >= NMAX)
+				reloop = false;
+//cout << "indices: " << indices << endl;
+		}
+//cout << "i: " << i << endl;
+		indices.conservativeResize(1, i);
+//cout << "indices: " << indices << endl;
 
 		return indices;
 	}
