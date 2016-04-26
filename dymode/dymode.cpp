@@ -292,8 +292,8 @@ BLACS::COMM_ACTIVE.Barrier(); // For debug printing purposes
 				hid_t file = H5Fopen(podFile.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
 
 
-				double Etot = svd.singularValues.sum();
-				MatrixXd Energies = svd.singularValues / Etot;
+				double Etot = svd.singularValues.cwiseAbs2().sum();
+				MatrixXd Energies = svd.singularValues.cwiseAbs2() / Etot;
 
 				hsize_t dims[2];
 				dims[0] = Energies.rows();
@@ -833,9 +833,9 @@ cout << "DMD = " << DMD.rows()<< "x" << DMD.cols() << endl;
 		for (int m = 0; m < amplitudes.cols(); ++m)
 		{
 			if (abs(lambdas(m, 0)) == 1)
-				mean_energy(0, m) = amplitudes(0, m);
+			  mean_energy(0, m) = amplitudes(0, m) *  amplitudes(0, m);
 			else
-				mean_energy(0, m) = amplitudes(0, m)*(1 - std::pow(abs(lambdas(m, 0)), lambdas.rows())) / (lambdas.rows() * (1 - abs(lambdas(m, 0))));
+			  mean_energy(0, m) = amplitudes(0, m)*amplitudes(0, m)*(1 - std::pow(abs(lambdas(m, 0)), lambdas.rows())) / (lambdas.rows() * (1 - abs(lambdas(m, 0))));
 			Etot += mean_energy(0, m);
 		}
 		
