@@ -35,10 +35,10 @@ $$A\mathbf{X}_{k} = \mathbf{X}_{k+1}$$
 where $\mathbf{X}_{k}$ is a matrix of snapshots from time-step 0 to $k$, and $\mathbf{X}_{k+1}$ from 1 to $k+1$.
 Using the singular value decomposition of $\mathbf{X}_{k} = U\Sigma V^{t}$, 
 
-$$
-A\mathbf{X}_{k} \align= \mathbf{X}_{k+1} \
-AU\Sigma V^{t} \align= \mathbf{X}_{k+1}
-$$
+\begin{aligned}
+A\mathbf{X}_{k} & = \mathbf{X}_{k+1} \
+AU\Sigma V^{t} & = \mathbf{X}_{k+1}
+\end{aligned}
 
 
 The eigendecomposition of \(\mathbf{A}\) provides the DMD modes and eigenvalues, which characterize the temporal dynamics and spatial structures of the system.
