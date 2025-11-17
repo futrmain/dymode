@@ -15,7 +15,9 @@ Related work and official documentation is availbale at [Dymode: A parallel dyna
 ## Theory
 
 DMD is based on the Koopman operator $A$ that relates the state of a system from one time step to the next:
+
 $$ \mathbf{x}_{k+1} \approx \mathbf{A}\mathbf{x}_k $$
+
 Dynamic Mode Decomposition approximates a linear operator that best advances the system from one snapshot to the next. For a sequence of snapshots \(\mathbf{x}_1, \mathbf{x}_2, \ldots, \mathbf{x}_m\), DMD seeks an operator \(\mathbf{A}\) such that:
 
 
