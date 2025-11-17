@@ -47,3 +47,42 @@ Since $U$ is a unitary matrix, the eigendecomposition of $A$ is similar to the e
 which can be computed purely from observed data (without knowledge of the operator $A$), as the eigendecomposition of $U^{t} \mathbf{X}_{k+1} V \Sigma^{+}$.
 
 Eigendecomposition of large matrices (millions of rows/columns) is computationally expensive, so `dymode` leverages ScaLAPACK to distribute the work and has been run efficiently with thousands of CPU cores. 
+
+## Build dymode
+
+### Dependencies
+
+`dymode` relies on:
+- **MPI** for parallelization
+- **ScaLAPACK** (e.g. MKL) for distributed linear algebra
+- **Boost** for various C++ features
+- **HDF5** to read and right large data files
+
+In addition, this repo includes additional header-only libraries like:
+- A modified version of the amazing [Eigen](https://libeigen.gitlab.io/)
+- `peigen`, an Eigen wrapper to work on distributed matrices
+
+### Compilation
+
+Fill in the indicated macros in `Makefile` and run `make <target>` with one of the following targets: `debug`, `assert`, `release`.
+
+## Usage
+
+`mpiexec -n 1 dymode -f “./flowcase” -n 1 -o “./dymode_results/” -m 5`
+
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--filename` | `-f` | | Specify the path and name of the snapshot files, without the file number or extension. |
+| `--geo` | `-g` | | Specify the path and name of an Ensight Gold geometry file associated with the data. |
+| `--dataset` | `-d` | `"/snapshots_T"` | Specify the name of the HDF5 dataset containing the snapshots. |
+| `--nfiles` | `-n` | `1` | Specify the number of files to read. |
+| `--stride` | `-s` | `1` | Specify the stride to use between the available snapshots when forming the snapshot matrix. |
+| `--variables` | `-i` | `"u"` | Specify the names of the variables to use as input. Use the name "null" to skip a variable. |
+| `--sort` | `-t` | `"energy,median"` | Specify the type of sorting applied to the modes before numbering them. |
+| `--block` | `-b` | `6` | Specify the block size used to distribute matrices amongst the MPI processes. |
+| `--eigen` | `-e` | `"EigHess"` | Specify the level of parallelization used when computing the eigen decomposition. |
+| `--residuals` | `-r` | | When present, this flag activates the computation of residuals. |
+| `--singulars` | | `0` | Specify the number of singular values to display. |
+| `--outdir` | `-o` | | Specify the path where output files are saved. |
+| `--modes` | `-m` | `1` | Specify how many modes are saved to disk. |
+| `--help` | `-h` | | When present, this flag terminates the execution of the program and displays help. |
