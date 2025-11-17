@@ -86,3 +86,11 @@ Fill in the indicated macros in `Makefile` and run `make <target>` with one of t
 | `--outdir` | `-o` | | Specify the path where output files are saved. |
 | `--modes` | `-m` | `1` | Specify how many modes are saved to disk. |
 | `--help` | `-h` | | When present, this flag terminates the execution of the program and displays help. |
+
+
+## Scaling
+
+Parallel scaling of dymode benchmarked on a 655360-by-1184 snapshot matrix, up to 576 cores. 
+The plot shows how much time is spent in different steps of the execution. 
+
+<img src="./dymode_parallel_scaling.png" width="400" />
