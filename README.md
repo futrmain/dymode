@@ -18,7 +18,27 @@ DMD is based on the Koopman operator $A$ that relates the state of a system from
 
 $$ \mathbf{x}_{k+1} \approx \mathbf{A}\mathbf{x}_k $$
 
-Dynamic Mode Decomposition approximates a linear operator that best advances the system from one snapshot to the next. For a sequence of snapshots \(\mathbf{x}_1, \mathbf{x}_2, \ldots, \mathbf{x}_m\), DMD seeks an operator \(\mathbf{A}\) such that:
+Even though $A$ is a _linear_ operator, it is able to describe _non-linear_ systems when working in infinite dimensions. 
+The eigendecomposition of $A$ then provides modes that are
+1. tied to a unique frequency
+2. coherent in space and time
+3. may grow or decay over time
+Points 2 and 3 make the decomposition different and more valuable than standard Fourier based decompositions.
+
+Dynamic Mode Decomposition works by approximating the eigendecomposition of $A$ by that of a finite-dimensional operator which best advances the observed state of a system from one snapshot to the next. 
+This can be done in several ways, but `dymode` uses singular value decomposition for robustness and accuracy. 
+
+We seek to find the eigendecomposition of the operator $A$ that satisfies
+
+$$A\mathbf{X}_{k} = \mathbf{X}_{k+1}$$
+
+where $\mathbf{X}_{k}$ is a matrix of snapshots from time-step 0 to $k$, and $\mathbf{X}_{k+1}$ from 1 to $k+1$.
+Using the singular value decomposition of $\mathbf{X}_{k} = U\Sigma V^{t}$, 
+
+$$
+A\mathbf{X}_{k} \align= \mathbf{X}_{k+1} \
+AU\Sigma V^{t} \align= \mathbf{X}_{k+1}
+$$
 
 
 The eigendecomposition of \(\mathbf{A}\) provides the DMD modes and eigenvalues, which characterize the temporal dynamics and spatial structures of the system.
