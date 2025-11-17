@@ -26,85 +26,47 @@ using namespace peigen;
 
 // Dymode helper functions
 #include "ColumnNorm.h"
-#include "H5inDMD.h"
+//#include "H5inDMD.h"
+#include "H5import.h"
 #include "GEOinDMD.h"
 #include "ModeSort.h"
 #include "options.h"
+
+#include <boost/math/constants/constants.hpp>
 
 using namespace phdfp;
 
 #endif
 
+#include "col2ensight.h"
+#include "row2text.h"
 
-
-void set80line(string& s)
-{
-	s.resize(80, ' ');
-	s.back() = '\n';
-}
-void gold_print_header(int mode, string complex_part, string var, FILE *pFile)
-{
-	stringstream stext;
-	string text;
-
-	stext << complex_part << " of Mode "
-		<< setfill('0') << setw(6) << mode
-		<< " for " << var;
-	text = stext.str();
-	set80line(text);
-
-	fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
-	stext.clear();//clear any bits set
-	stext.str(std::string());
-}
-
-void gold_print_values(MatrixXf values, geofilereader geo, FILE *pFile)
-{
-	stringstream stext;
-	string text;
-
-	int offset = 0;
-
-	for (auto it_part = geo.parts.begin(); it_part != geo.parts.end(); ++it_part)
-	{
-		stext << "part";
-		text = stext.str();
-		set80line(text);
-
-		fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
-		stext.clear();//clear any bits set
-		stext.str(std::string());
-
-		int part_number = (*it_part).number;
-		fwrite(&part_number, 1, 1 * sizeof(int), pFile);
-
-		for (unsigned int k = 0; k < (*it_part).telements.size(); ++k)
-		{
-			stext << (*it_part).telements[k];
-			text = stext.str();
-			set80line(text);
-
-			fwrite(text.c_str(), 1, 80 * sizeof(char), pFile);
-			stext.clear();//clear any bits set
-			stext.str(std::string());
-
-			int nelems = (*it_part).nelements[k];
-			if (nelems == -1)
-				nelems = values.rows();
-			fwrite(values.data() + offset, sizeof(float), nelems, pFile);
-			offset += (*it_part).nelements[k];
-		}
-	}
-}
 
 
 int main(int argc, char* argv[])
 {
+//cout << "hello! " << endl;
 	//int mkl_res = mkl_cbwr_set(MKL_CBWR_COMPATIBLE);
 	MPI::Init();
-
+//cout << "Howdy? "<<endl;
 	// Deal with input parameters
 	options opt(argc, argv);
+//cout << "Rock n roll " << endl;
+/*
+	cout << "filename: " << opt.filename << endl;
+	cout << "datasets: " << opt.variables[0] << endl;
+	cout << "n files: " << opt.nfiles << endl;
+	cout << "stride: " << opt.stride << endl;
+	cout << "block: " << opt.sblock << endl;
+	cout << "Eigen: " << opt.eigSolver << endl;
+	cout << "res: " << opt.dispResiduals << endl;
+	cout << "singulars: " << opt.nsingulars << endl;
+	cout << "outdir: " << opt.outdir << endl;
+	//cout << "sort: " << opt.sortMeth;
+	cout << "pod: " << opt.npod << endl;
+	cout << "dmd: " << opt.nmodes << endl;
+*/	
+//cout << "couillon "<<endl;
 
 	int rank, numtasks;
 	rank = MPI::COMM_WORLD.Get_rank();
@@ -123,7 +85,7 @@ int main(int argc, char* argv[])
 
 	prof.tic("Dymode");
 
-	geofilereader georead(opt.geofile);
+	//geofilereader georead(opt.geofile);
 
 	/////**************************************************************************************************/
 	/////*----------------------------------       READ THE DATA      ------------------------------------*/
@@ -137,8 +99,8 @@ int main(int argc, char* argv[])
 
 	datasetreader dreader(opt.nfiles, opt.filename);
 
-	dreader.read(opt.dataset, opt.variables);
-
+	dreader.read(opt.variables);
+//cout << "SUCCESS " <<endl;
 	SharedMatrix<MatrixXd> snaps(dreader.createShared(opt.sblock, opt.sblock, opt.stride));
 
 	if (ROOT)
@@ -185,7 +147,9 @@ int main(int argc, char* argv[])
 			{
 				cout.precision(std::numeric_limits< double >::digits10);
 				int nsings = min((int)svd.singularValues.rows(), opt.nsingulars);
-				cout << "First " << nsings << " singular values: " << endl << svd.singularValues.col(0).head(nsings).transpose() << endl << endl << flush;
+				cout << "First " << nsings << " singular values: " << endl << svd.singularValues.col(0).head(nsings).transpose() << endl;
+				
+				cout << svd.singularValues.col(0).head(nsings).transpose() / svd.singularValues.col(0).sum() << endl << endl << flush;
 				std::cout.copyfmt(std::ios(NULL));
 			}
 		}
@@ -247,6 +211,138 @@ int main(int argc, char* argv[])
 		/////**************************************************************************************************/
 		/////*------------------------------      /Print singular values      --------------------------------*/
 		/////**************************************************************************************************/
+
+
+		/////**************************************************************************************************/
+		/////*---------------------------       PRINT SOME POD MODES TO HDF5      ----------------------------*/
+		/////**************************************************************************************************/
+		if (opt.npod > 0)
+		{
+			prof.tic("SavePODModes");
+
+			string podFile = opt.outdir + "POD.h5";
+			stringstream variables_gold;
+
+			//Write the time coefficients
+			MatrixXd TimeSeries;
+					
+			if (BLACS::myrank == 0)
+			{
+				TimeSeries.resize(svd.matrixVt.cols(), opt.npod);
+			}
+
+			//cout << "oh oui" << endl;
+
+			for (int m = 0; m < opt.npod; ++m)
+			{
+			  //cout << "m = " << m << endl;
+				MatrixXd times = row2single(svd.matrixVt, m);
+				//cout << "oh non" << endl;
+				if (BLACS::myrank == 0)
+				{
+					TimeSeries.col(m) = times;
+
+				}
+
+			}
+
+			if (BLACS::myrank == 0)
+			{
+				hid_t file = H5Fcreate(podFile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+				
+				hsize_t dims[2];
+				dims[0] = opt.npod;
+				dims[1] = svd.matrixVt.cols();
+				hid_t memory_space = H5Screate_simple(/*rank*/ 2, dims, NULL);
+				hid_t file_space = H5Screate_simple(/*rank*/ 2, dims, NULL);
+//cout << TimeSeries.block(0, 0, 10, 5) << endl;
+				hid_t dset = H5Dcreate( file, "/TimeSeries", H5T_IEEE_F64LE, file_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+//cout << TimeSeries << endl;
+				H5Dwrite(dset, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, TimeSeries.data() );
+
+				H5Dclose(dset);
+				H5Fclose(file);
+			}
+
+			//Write the POD modes
+			MatrixXd POD;
+	//cout << "TESTING MIC" << endl;	
+//BLACS::COMM_ACTIVE.Barrier(); // For debug printing purposes			
+			if (BLACS::myrank == 0)
+			{
+				POD.resize(svd.matrixU.rows(), opt.npod);
+			}
+			for (int m = 0; m < opt.npod; ++m)
+			{
+//BLACS::COMM_ACTIVE.Barrier(); // For debug printing purposes		
+//cout << "m' = " << m << endl;
+				MatrixXd mode = col2single(svd.matrixU, m);
+//cout << "oh noes" << endl;
+				if (BLACS::myrank == 0)
+				{
+					POD.col(m) = mode;
+				}
+
+			}
+BLACS::COMM_ACTIVE.Barrier(); // For debug printing purposes
+//cout << "TESTING John" << endl;	
+
+			if (BLACS::myrank == 0)
+			{
+				hid_t file = H5Fopen(podFile.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+
+
+				double Etot = svd.singularValues.cwiseAbs2().sum();
+				MatrixXd Energies = svd.singularValues.cwiseAbs2() / Etot;
+
+				hsize_t dims[2];
+				dims[0] = Energies.rows();
+				dims[1] = Energies.cols();
+				hid_t memory_space = H5Screate_simple(/*rank*/ 2, dims, NULL);
+				hid_t file_space = H5Screate_simple(/*rank*/ 2, dims, NULL);
+
+				hid_t dset = H5Dcreate( file, "/Energies", H5T_IEEE_F64LE, file_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+				H5Dwrite(dset, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, Energies.data() );
+
+
+				for (int field = 0; field < opt.variables.size(); ++field)
+				{
+					vector<string> dsetpaths;
+					boost::split(dsetpaths, opt.variables[field], boost::is_any_of("/\\"));
+					string groupname = "";
+					for (int g = 1; g < (dsetpaths.size() -1); ++g)
+					{
+	//cout << dsetpaths[g]<< endl;
+		groupname = groupname + "/" + dsetpaths[g];
+						//group = H5Gcreate(group, dsetpaths[g].c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+					}
+	//cout << groupname << endl;
+					hid_t group = H5Gcreate(file, groupname.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+	//cout << groupname << "was created " << group << endl;
+					MatrixXd buffer = POD.block(dreader.ranges[opt.variables[field]].beg, 0, 
+									dreader.ranges[opt.variables[field]].end - dreader.ranges[opt.variables[field]].beg +1, POD.cols());
+
+					
+					dims[0] = buffer.cols();
+					dims[1] = buffer.rows();
+					memory_space = H5Screate_simple(/*rank*/ 2, dims, NULL);
+					file_space = H5Screate_simple(/*rank*/ 2, dims, NULL);
+
+					hid_t dset = H5Dcreate( file, opt.variables[field].c_str(), H5T_IEEE_F64LE, file_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+	//cout << TimeSeries << endl;
+					H5Dwrite(dset, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data() );
+
+					H5Dclose(dset);
+				}
+				H5Fclose(file);
+			}
+
+			prof.toc("SavePODModes");
+		}
+		/////**************************************************************************************************/
+		/////*----------------------------       /PRINT SOME POD MODES TO HDF5      --------------------------*/
+		/////**************************************************************************************************/
+
 
 		///////**************************************************************************************************/
 		///////*-----------------------------      DO B := Ut * S2 * V * SIG+     ------------------------------*/
@@ -347,6 +443,33 @@ int main(int argc, char* argv[])
 		BLACS::COMM_ACTIVE.Barrier();
 		/////**************************************************************************************************/
 		/////*------------------------------    /DO AN EIGENVECTOR SOLUTION     ------------------------------*/
+		/////**************************************************************************************************/
+
+		/////**************************************************************************************************/
+		/////*----------------------------     COMPUTE THE RESCALED SPECTRUM     -----------------------------*/
+		/////**************************************************************************************************/
+
+		MatrixXd ScaledAmplitudes;
+		if (opt.sortMeth.stype == scaled)
+		{
+			if (ROOT)
+			{	cout << "Computing the rescaled spectrum...             " << endl;
+			}
+
+			SharedMatrix<MatrixXcd> ScaledModes = svd.matrixVt.cast<std::complex<double> >().transpose();
+			ScaledModes.local_matrix = ScaledModes.local_matrix * SIGplus;
+
+			SharedMatrix<MatrixXcd> tmp = ScaledModes * X;
+
+			MatrixXd ScalingValues = ColumnNorm(tmp);
+			tmp.ColScale(ScalingValues.cast<std::complex<double> >().cwiseInverse());
+			ScaledModes = (snaps.cast<std::complex<double> >().block(0, 0, snaps.rows(), snaps.cols() - 1)) * tmp;
+
+			ScaledAmplitudes = ColumnNorm(ScaledModes);
+		}
+		
+		/////**************************************************************************************************/
+		/////*----------------------------     /COMPUTE THE RESCALED SPECTRUM     ----------------------------*/
 		/////**************************************************************************************************/
 
 
@@ -647,6 +770,24 @@ int main(int argc, char* argv[])
 				cout << "\tError, could not open " << opt.outdir + "eigenvalues.txt" << endl;
 			}
 
+
+			if (opt.sortMeth.stype == scaled)
+			{
+				cout << "Saving scaled spectrum...       ";
+				std::ofstream scaledfile(opt.outdir + "scaled_spectrum.txt");
+				scaledfile.precision(std::numeric_limits< double >::digits10);
+				if (scaledfile.is_open())
+				{
+					scaledfile << ScaledAmplitudes << '\n';
+					scaledfile.close();
+					cout << "\tDONE" << endl;
+				}
+				else
+				{
+					cout << "\tError, could not open " << opt.outdir + "scaled_spectrum.txt" << endl;
+				}
+			}
+
 			prof.toc("WriteLight", "\nLight data saved in (s): ");
 			cout << endl;
 		}
@@ -657,7 +798,7 @@ int main(int argc, char* argv[])
 
 
 		/////**************************************************************************************************/
-		/////*------------------------------       PRINT SOME MODES TO HDF5      -----------------------------*/
+		/////*---------------------------       PRINT SOME DMD MODES TO HDF5      ----------------------------*/
 		/////**************************************************************************************************/
 		prof.tic("SaveModes");
 		BLACS::COMM_ACTIVE.Barrier();
@@ -665,141 +806,127 @@ int main(int argc, char* argv[])
 		MatrixXd::Index i_mode, x_mode;
 		stringstream variables_gold;
 
+		MatrixXd SortingAmplitude;
+		if (opt.sortMeth.stype == scaled)
+		{
+			SortingAmplitude = ScaledAmplitudes;
+		}
+		else
+		{
+			SortingAmplitude = amplitudes;
+		}
+
 		//cout << BLACS::myrank << " amplitudes " << amplitudes << endl << endl;
-		ModeSort<MatrixXcd> sorted(Modes, lambdas, amplitudes, svd.singularValues, opt.sortMeth, opt.nmodes);
+		ModeSort<MatrixXcd> sorted(Modes, lambdas, SortingAmplitude, svd.singularValues, opt.sortMeth, opt.nmodes);
 		const MatrixXi indices = sorted.orderedIdx;
 
+		MatrixXcd DMD;
+		if (ROOT)
+		{
+			DMD.resize(Modes.rows(), indices.cols());
+cout << "DMD = " << DMD.rows()<< "x" << DMD.cols() << endl;
+		}
+
+
+		MatrixXd mean_energy(1, amplitudes.cols());
+		double Etot = 0;
+		for (int m = 0; m < amplitudes.cols(); ++m)
+		{
+			if (abs(lambdas(m, 0)) == 1)
+			  mean_energy(0, m) = amplitudes(0, m) *  amplitudes(0, m);
+			else
+			  mean_energy(0, m) = amplitudes(0, m)*amplitudes(0, m)*(1 - std::pow(abs(lambdas(m, 0)), lambdas.rows())) / (lambdas.rows() * (1 - abs(lambdas(m, 0))));
+			Etot += mean_energy(0, m);
+		}
+		
+
+		MatrixXd Energies(1, indices.cols());
+		MatrixXd Frequencies(1, indices.cols());
 		for (int m = 0; m < indices.cols(); ++m)
 		{
-			const int i_mode = indices(0, m);
+//cout << "m = " << m << endl;
+			const int i_mode = indices(0, m);	
+//cout << "i_mode = " << i_mode << endl;
+			Energies(0, m) = mean_energy(0, i_mode) / Etot;
+			Frequencies(0, m) = atan2(lambdas(i_mode).imag(), lambdas(i_mode).real()) / (2*opt.tstep*boost::math::constants::pi<double>());
 
-			if (opt.sortMeth.conjugates == false && lambdas(i_mode, 0).imag() < 0)
-			{	// There is no more mode in the top half plane
-				m = indices.cols();
-			}
-			else
+			MatrixXcd curr_mode = col2single(Modes, i_mode);
+			if (ROOT)
 			{
-				if (BLACS::mycol == BLACS::indxg2p(i_mode, Modes.cblock(), BLACS::grid_cols))
-				{
-					int i_loc = BLACS::indxg2l(i_mode, Modes.cblock(), BLACS::grid_cols);
-					MatrixXf exportdata;
-
-
-					// Gather the global column on row 0
-					Matrix<MPI::Request, Dynamic, Dynamic> Irecv_requests;
-					Matrix<Matrix<float, Dynamic, Dynamic>, Dynamic, 1> RecvBuffer;
-					if (BLACS::myrow == 0)
-					{
-						exportdata.resize(Modes.rows(), 2);
-						Irecv_requests.resize(BLACS::grid_rows, 1);
-						RecvBuffer.resize(BLACS::grid_rows, 1);
-
-						for (int r = 0; r < BLACS::grid_rows; ++r)
-						{
-							int size = BLACS::peigen_numroc(Modes.rows(), Modes.rblock(), r, 0, BLACS::grid_rows);
-							RecvBuffer(r, 0).resize(size, 2);
-							int powner = BLACS::Cblacs_pnum(BLACS::ctxt, r, BLACS::mycol);
-							Irecv_requests(r, 0) = BLACS::COMM_ACTIVE.Irecv(RecvBuffer(r, 0).data(), size * 2, MPI::FLOAT, powner, 1/*tag*/);
-						}
-					}
-
-					Matrix<float, Dynamic, 2> SendBuffer(Modes.local_matrix.rows(), 2);
-					SendBuffer.col(0) = Modes.local_matrix.col(i_loc).cwiseAbs().cast<float>();
-					SendBuffer.col(1) = Modes.local_matrix.col(i_loc).imag().binaryExpr(Modes.local_matrix.col(i_loc).real(), std::ptr_fun(atan2<double, double>)).cast<float>();
-					int col_root = BLACS::Cblacs_pnum(BLACS::ctxt, 0, BLACS::mycol);
-					BLACS::COMM_ACTIVE.Send(SendBuffer.data(), SendBuffer.rows() * SendBuffer.cols(), MPI::FLOAT, col_root, 1 /*tag*/);
-
-					if (BLACS::myrow == 0)
-					{
-						MPI::Request::Waitall(BLACS::grid_rows, Irecv_requests.data());
-
-						// Combine the buffers
-						for (int rb = 0; rb < ceil((double)exportdata.rows() / Modes.rblock()); rb++)
-						{
-							int roffset = Modes.rblock() * floor(rb / BLACS::grid_rows);
-							int _nrows = min(Modes.rblock(), (int)(exportdata.rows() - rb*Modes.rblock()));
-							int pr_owner = rb % BLACS::grid_rows;
-							exportdata.block(rb*Modes.rblock(), 0, _nrows, 1) = RecvBuffer(pr_owner, 0).block(roffset, 0, _nrows, 1);
-							exportdata.block(rb*Modes.rblock(), 1, _nrows, 1) = RecvBuffer(pr_owner, 0).block(roffset, 1, _nrows, 1);
-						}
-					}
-
-					// Print to disk from row 0
-					if (BLACS::myrow == 0)
-					{
-						cout << "(" << BLACS::myrank << ") " << " writing mode " << m << "...";
-						FILE *pFile;
-
-						int offset_gold = 0;
-						MatrixXf values;
-						for (string var : opt.variables)
-						{
-							if (!(var == "null"))
-							{
-								stringstream filenameRE;
-								filenameRE << "mode" << setfill('0') << setw(6) << m << "." << var << ".abs";
-
-								pFile = fopen((opt.outdir + filenameRE.str()).c_str(), "wb");
-
-								gold_print_header(m, "Module", var, pFile);
-
-								values = exportdata.block(offset_gold, 0, dreader.Np, 1);
-								gold_print_values(values, georead, pFile);
-
-								fclose(pFile);
-
-								stringstream filenameIM;
-								filenameIM << "mode" << setfill('0') << setw(6) << m << "." << var << ".ang";
-
-								pFile = fopen((opt.outdir + filenameIM.str()).c_str(), "wb");
-
-								gold_print_header(m, "Angle", var, pFile);
-
-								values = exportdata.block(offset_gold, 1, dreader.Np, 1);
-								gold_print_values(values, georead, pFile);
-
-								fclose(pFile);
-
-								offset_gold += dreader.Np;
-							}
-						}
-						cout << "\tDONE" << endl;
-					}
-				}
-
-				// Add all modes/variables to the list of variables
-				if (BLACS::myrank == 0)
-				{
-					for (string var : opt.variables)
-					{
-						if (!(var == "null"))
-						{
-							variables_gold << "scalar per element: " << var << m << "abs " << "mode" << setfill('0') << setw(6) << m << "." << var << ".abs" << endl;
-							variables_gold << "scalar per element: " << var << m << "ang " << "mode" << setfill('0') << setw(6) << m << "." << var << ".ang" << endl;
-						}
-					}
-				}
-			}
+//cout << "yeapeeeh" << endl;
+//cout << "oh yeahs: " << Modes.local_matrix.block(dreader.ranges[opt.variables[1]].beg,i_mode, 10, 1) << endl;
+//cout << "oh noes: "  << endl;
+				DMD.col(m) = curr_mode;
+			}		
 		}
-
-		// Write the .case file
-		if (BLACS::myrank == 0)
+//cout << "lambdas: "  << endl<< lambdas.cwiseAbs() <<endl;
+		if (ROOT)
 		{
-			vector<string> geopath;
-			boost::split(geopath, opt.geofile, boost::is_any_of("/\\"));
+			string dmdFile = opt.outdir + "DMD.h5";
+			hid_t file = H5Fcreate(dmdFile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
-			std::ofstream ofs(opt.outdir + "dmd.case", std::ofstream::out);
-			ofs << "FORMAT" << endl
-				<< "type: ensight gold" << endl
-				<< "GEOMETRY" << endl
-				<< "model: " << geopath.back() << endl
-				<< "VARIABLE" << endl
-				<< variables_gold.str()
-				<< "TIME" << endl
-				<< "time set: 1 \nnumber of steps: 1 \nfilename start number: 0 \nfilename increment: 1 \ntime values: \n0" << endl;
-			ofs.close();
+
+			hsize_t dims[2];
+			dims[0] = Energies.rows();
+			dims[1] = Energies.cols();
+			hid_t memory_space = H5Screate_simple(/*rank*/ 2, dims, NULL);
+			hid_t file_space = H5Screate_simple(/*rank*/ 2, dims, NULL);
+			hid_t dset = H5Dcreate( file, "/Energies", H5T_IEEE_F64LE, file_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+			H5Dwrite(dset, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, Energies.data() );
+
+			dset = H5Dcreate( file, "/Frequencies", H5T_IEEE_F64LE, file_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+			H5Dwrite(dset, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, Frequencies.data() );
+
+			for (int field = 0; field < opt.variables.size(); ++field)
+			{
+				vector<string> dsetpaths;
+				boost::split(dsetpaths, opt.variables[field], boost::is_any_of("/\\"));
+				string groupname = "";
+				for (int g = 1; g < (dsetpaths.size() -1); ++g)
+				{
+					groupname = groupname + "/" + dsetpaths[g];
+				}
+				hid_t group = H5Gcreate(file, groupname.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+	//cout << "taking a block of " << dreader.ranges[opt.variables[field]].beg << ",0; " << dreader.ranges[opt.variables[field]].end - dreader.ranges[opt.variables[field]].beg +1 << "," <<DMD.cols() << endl;
+
+	//cout << DMD.block(dreader.ranges[opt.variables[field]].beg, 0, 10, 2) << endl << endl;
+	//cout << Modes.local_matrix.block(dreader.ranges[opt.variables[field]].beg, indices(0,0), 10, 1) << endl << endl;
+	//cout << Modes.local_matrix.block(dreader.ranges[opt.variables[field]].beg, indices(0,1), 10, 1) << endl << endl;
+
+				MatrixXd buffer = DMD.block(dreader.ranges[opt.variables[field]].beg, 0, 
+								dreader.ranges[opt.variables[field]].end - dreader.ranges[opt.variables[field]].beg +1, DMD.cols()).cwiseAbs().cast<double>();
+
+				dims[0] = buffer.cols();
+				dims[1] = buffer.rows();
+				memory_space = H5Screate_simple(/*rank*/ 2, dims, NULL);
+				file_space = H5Screate_simple(/*rank*/ 2, dims, NULL);
+
+				string dsetname = opt.variables[field] + "_Magnitude";
+
+//cout << "mag " << endl << buffer.block(0, 0, 10, 2) << endl << endl;
+
+				dset = H5Dcreate( file, dsetname.c_str(), H5T_IEEE_F64LE, file_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+	//cout << TimeSeries << endl;
+				H5Dwrite(dset, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data() );
+
+				buffer = DMD.block(dreader.ranges[opt.variables[field]].beg, 0, 
+								dreader.ranges[opt.variables[field]].end - dreader.ranges[opt.variables[field]].beg +1, DMD.cols()).imag().binaryExpr(DMD.block(dreader.ranges[opt.variables[field]].beg, 0, 
+								dreader.ranges[opt.variables[field]].end - dreader.ranges[opt.variables[field]].beg +1, DMD.cols()).real(), std::ptr_fun(atan2<double, double>)).cast<double>();
+
+//cout << "phase " << endl << buffer.block(0, 0, 10, 2) << endl << endl;
+				
+				H5Dclose(dset);
+
+				dsetname = opt.variables[field] + "_Phase";
+				dset = H5Dcreate( file, dsetname.c_str(), H5T_IEEE_F64LE, file_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+				H5Dwrite(dset, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data() );
+				H5Dclose(dset);
+
+				
+			}
+			H5Fclose(file);
 		}
-
 
 		////////////////////////
 		cout << flush;

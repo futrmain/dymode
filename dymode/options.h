@@ -1,8 +1,9 @@
 #ifndef OPTIONS_H
 #define OPTIONS_H
 
-#include <tclap/CmdLine.h>
+//#include <tclap/CmdLine.h>
 #include <boost/algorithm/string.hpp>
+#include "yaml-cpp/yaml.h"
 
 using namespace std;
 
@@ -18,114 +19,190 @@ public:
 	bool dispResiduals;
 	peigen::EigenMethod eigSolver;
 	int nmodes;
+	int npod;
 	string geofile;
 	int nsingulars;
 	int sblock;
 	sort_method sortMeth;
+	string result;
+	double tstep;
 
 	options(int argc, char* argv[])
 	{
 		try
 		{
-			// ************* Reader and Description ************* //
-			TCLAP::CmdLine input("Dymode, copyrighted for money", ' ', "0.1a");
-
-			
-
-			// Number of .h5 files to read
-			TCLAP::ValueArg<int> nfilesArg("n", "nfiles", "Number of files to read", false /*req*/, 1/*default*/, "int", input);
-
-			// Stride between snapshots
-			TCLAP::ValueArg<int> nskipstepArg("s", "stride", "Step between snapshots to read (read every other s snapshots)", false /*req*/, 1/*default*/, "int", input);
-
-			// Dataset name within the h5 files to read from
-			TCLAP::ValueArg<string> datasetnameArg("d", "dataset", "dataset name within the HDF file(s)", false /*req*/, "snapshots_T"/*default*/, "string", input);
-
-			// Name of H5 files
-			TCLAP::ValueArg<string> filenameArg("f", "filename", "name of the data-file(s), without trailing number (rootname)", true /*req*/, ""/*default*/, "string", input);
-			
-			// Variables to keep
-			TCLAP::ValueArg<string> variablesArg("i", "variables", "name of the input variable(s) to keep in the snapshot matrix before starting the DMD. A name must be provided for each variable present in the disk data, separated by commas. Use 'null' in order to not use a variable. For example, if the data on disk contains the variables u, v, w, p but you only want to use u and p, use --variables u,null,null,p", false /*req*/, "u"/*default*/, "string", input);
-
-			// Output directory
-			TCLAP::ValueArg<string> outdirArg("o", "outdir", "Output directory where result files are saved", true /*req*/, ""/*default*/, "string", input);
-
-			// Display residuals switch
-			TCLAP::SwitchArg residualsArg("r", "residuals", "If specified, residuals are computed after the key steps of the computation", input, false);
-
-			// Method to use in ScaEigenSolver
-			TCLAP::ValueArg<string> eigArg("e", "eigen", "String describing the level of parallelism to use when solving the eigen value problem. Possible values are \"EigSerial\": the whole problem is solved in serial; \"EigHess\": Hessenberg reduction is done in parallel, the rest is done in serial; \"EigSchur\": Everything is computed in parallel. This is bugged in MKL 11.", false /*req*/, "EigHess"/*default*/, "string", input);
-
-			// Number of modes to print out
-			TCLAP::ValueArg<int> nmodesArg("m", "modes", "Number of modes to save to disk", false /*req*/, 2/*default*/, "int", input);
-
-			// Geometry file from Ensight Gold
-			TCLAP::ValueArg<string> geoArg("g", "geo", "Geometry file from Ensight", false /*req*/, ""/*default*/, "string", input);
-
-			// Number of singular values to display
-			TCLAP::ValueArg<int> nsingArg("k", "singulars", "If set to a positive number n, will display the first n singular values", false /*req*/, 0/*default*/, "int", input);
-
-			// Block size for shared matrics (blocks have to be square!)
-			TCLAP::ValueArg<int> sblockArg("b", "block", "Block size of the shared matrices. The minimum value is 6", false /*req*/, 6/*default*/, "int", input);
-
-			// Block size for shared matrics (blocks have to be square!)
-			TCLAP::ValueArg<string> sortmethArg("t", "sort", "Method for sorting the modes", false /*req*/, "energy,median"/*default*/, "string", input);
-
-			// ************* Parse the argv array ************* //
-			input.parse(argc, argv);
-
-			// ************* Store the arguments ************** //
-			nfiles = nfilesArg.getValue();
-			stride = nskipstepArg.getValue();
-
-			boost::split(variables, variablesArg.getValue(), boost::is_any_of(","));
-			dataset = datasetnameArg.getValue();
-
-			outdir = outdirArg.getValue();
-			if (outdir.empty())
+//cout << "I'm good" << endl;
+			if (argc < 2)
 			{
-				//outdir = "./";
+//cout << "Oopsy" << endl;
+				result = "The path to YAML file is missing.";
 			}
 			else
 			{
-				if (outdir.back() != '/' && outdir.back() != '\\')
-					outdir = outdir + "/";
+//cout << "Srious business" << endl;
+				//cout << argv[1] << endl;
+				//cout << "coutchi" << endl;
+//cout << "coutchi 2" << endl;
+				YAML::Node config = YAML::LoadFile(argv[1]);
+				//cout << "fuck you" << endl;
+				//cout << config["input"]["filename"].as<string>() << endl;
+
+				YAML::Node subnode = config["input"];
+//cout << subnode.size() << endl;
+//cout << "OK" << endl;
+/*for (YAML::const_iterator it=subnode.begin();it!=subnode.end();++it)
+{
+	//cout << i << endl;
+	cout << it->first.as<std::string>() << endl;
+	cout << it->second.as<std::string>() << endl;
+}*/
+				filename = subnode["filename"].as<std::string>();
+
+				if(subnode["time-step"])
+				{
+					tstep = subnode["time-step"].as<double>();
+				}
+				else
+				{
+					tstep = 1;
+				}
+				//cout << filename << endl;
+
+				YAML::Node dsnode = subnode["datasets"];
+//cout << "number of datasets: " << dsnode.size() << endl;					
+				if (subnode["datasets"].size() < 1)	
+				{
+//cout << "You must specify at least one dataset." << endl;
+					result = "You must specify at least one dataset.";
+				}
+				else
+				{
+//cout << "number of datasets: " << subnode["datasets"].size() << endl;
+					for (int i = 0; i < subnode["datasets"].size(); ++i)
+					{
+//cout << subnode["datasets"][i].as<std::string>() << endl;
+						variables.push_back(subnode["datasets"][i].as<std::string>());
+					}
+				}
+
+				if (subnode["nfiles"])
+				{
+					nfiles = subnode["nfiles"].as<int>();
+				}
+				else
+				{
+					nfiles = 1;
+				}
+				//cout << nfiles << endl;
+
+				if (subnode["stride"])
+				{
+					stride = subnode["stride"].as<int>();
+				}
+				else
+				{
+					stride = 1;
+				}
+				//cout << stride << endl;
+
+				if (config["computation"])
+				{
+					subnode = config["computation"];
+
+					if (subnode["block"])
+					{
+						sblock = subnode["block"].as<int>();
+					}
+					else
+					{
+						sblock = 6;
+					}
+
+					if (subnode["eigen"])
+					{
+						if (subnode["eigen"].as<string>() == "EigSerial")
+							eigSolver = EigSerial;
+						else if (subnode["eigen"].as<string>() == "EigHess")
+							eigSolver = EigHess;
+						else if (subnode["eigen"].as<string>() == "EigSchur")
+							eigSolver = EigSchur;
+						else // unrecognized option
+							eigSolver = EigHess;
+					}
+					else
+					{
+						eigSolver = EigHess;
+					}
+
+					if (subnode["residuals"])
+					{
+						dispResiduals = subnode["residuals"].as<bool>();
+					}
+					else
+					{
+						dispResiduals = false;
+					}
+
+					if (subnode["singulars"])
+					{
+						nsingulars = subnode["singulars"].as<int>();
+					}
+					else
+					{
+						nsingulars = 0;
+					}
+				}
+				else
+				{
+					sblock = 6;
+					eigSolver = EigHess;
+					dispResiduals = false;
+					nsingulars = 0;
+				}
+
+				subnode = config["output"];
+//cout << "tada" << endl;
+				outdir = subnode["outdir"].as<string>();
+//cout << outdir << endl;
+				if (subnode["sorting"])
+				{
+					sortMeth.set(subnode["sorting"].as<string>());
+				}
+				else
+				{
+					sortMeth.set("energy,median");
+				}
+
+				if (subnode["pod"])
+				{
+					npod = subnode["pod"].as<int>();
+				}
+				else
+				{
+					npod = 0;
+				}
+
+				if (subnode["dmd"])
+				{
+					nmodes = subnode["dmd"].as<int>();
+				}
+				else
+				{
+					nmodes = 0;
+				}	
+//cout << "/else" << endl;			
 			}
-
-			dispResiduals = residualsArg.getValue();
-
-			if (eigArg.getValue() == "EigSerial")
-				eigSolver = EigSerial;
-			else if (eigArg.getValue() == "EigHess")
-				eigSolver = EigHess;
-			else if (eigArg.getValue() == "EigSchur")
-				eigSolver = EigSchur;
-			else // unrecognized option
-				eigSolver = EigHess;
-
-			nmodes = nmodesArg.getValue();
-
-			geofile = geoArg.getValue();
-
-			filename = filenameArg.getValue();
-
-			nsingulars = nsingArg.getValue();
-
-			sblock = sblockArg.getValue();
-			if (sblock < 6)
-			{
-				sblock = 6;
-				//if (BLACS::myrank)
-					cout << "Warning: The block size must be at least 6. The size entered, " << sblock << ", is not valid. Using --block 6" << endl;
-			}
-
-			sortMeth.set(sortmethArg.getValue());
 		}
-		catch (TCLAP::ArgException &e)  // catch any exceptions
+		catch(YAML::ParserException& e)
 		{
-			std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
+			std::cout << "erreur!\n";
+			std::cout << e.what() << "\n";
 		}
+//cout << "big boom" << endl;
 	}
 };
+
+
+		
 
 #endif //OPTIONS_H
