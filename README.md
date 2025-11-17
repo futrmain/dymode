@@ -25,20 +25,25 @@ The eigendecomposition of $A$ then provides modes that are
 3. may grow or decay over time
 Points 2 and 3 make the decomposition different and more valuable than standard Fourier based decompositions.
 
+### Calculation in `dymode`
 Dynamic Mode Decomposition works by approximating the eigendecomposition of $A$ by that of a finite-dimensional operator which best advances the observed state of a system from one snapshot to the next. 
 This can be done in several ways, but `dymode` uses singular value decomposition for robustness and accuracy. 
 
 We seek to find the eigendecomposition of the operator $A$ that satisfies
 
-$$A\mathbf{X}_{k} = \mathbf{X}_{k+1}$$
+$$A X_{k} = X_{k+1}$$
 
-where $\mathbf{X}_{k}$ is a matrix of snapshots from time-step 0 to $k$, and $\mathbf{X}_{k+1}$ from 1 to $k+1$.
-Using the singular value decomposition of $\mathbf{X}_{k} = U\Sigma V^{t}$, 
+where $X_{k}$ is a matrix of snapshots from time-step 0 to $k$, and $X_{k+1}$ from 1 to $k+1$.
+Using the singular value decomposition of $X_{k} = U\Sigma V^{t}$, 
 
+``` math
 \begin{aligned}
-A\mathbf{X}_{k} & = \mathbf{X}_{k+1} \
-AU\Sigma V^{t} & = \mathbf{X}_{k+1}
+&                      &A &\mathbf{X}_{k} & = &\mathbf{X}_{k+1}  \\
+&\Leftrightarrow       &A &U\Sigma V^{t}  & = &\mathbf{X}_{k+1} \\
+&\Leftrightarrow U^{t} &A &U              & = U^{t} &\mathbf{X}_{k+1} V \Sigma^{+}
 \end{aligned}
+``` 
+Since $U$ is a unitary matrix, the eigendecomposition of $A$ is similar to the eigendecomposition of $U^{t}AU$,
+which can be computed purely from observed data (without knowledge of the operator $A$), as the eigendecomposition of $U^{t} \mathbf{X}_{k+1} V \Sigma^{+}$.
 
-
-The eigendecomposition of \(\mathbf{A}\) provides the DMD modes and eigenvalues, which characterize the temporal dynamics and spatial structures of the system.
+Eigendecomposition of large matrices (millions of rows/columns) is computationally expensive, so `dymode` leverages ScaLAPACK to distribute the work and has been run efficiently with thousands of CPU cores. 
