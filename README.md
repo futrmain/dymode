@@ -46,7 +46,15 @@ Using the singular value decomposition of $X_{k} = U\Sigma V^{t}$,
 Since $U$ is a unitary matrix, the eigendecomposition of $A$ is similar to the eigendecomposition of $U^{t}AU$,
 which can be computed purely from observed data (without knowledge of the operator $A$), as the eigendecomposition of $U^{t} \mathbf{X}_{k+1} V \Sigma^{+}$.
 
-Eigendecomposition of large matrices (millions of rows/columns) is computationally expensive, so `dymode` leverages ScaLAPACK to distribute the work and has been run efficiently with thousands of CPU cores. 
+
+### Scaling
+
+Eigendecomposition of large matrices (millions of rows/columns) is computationally expensive, so `dymode` leverages ScaLAPACK to distribute heavy linear algebra operations. 
+Parallel scaling of dymode was benchmarked on a 655360-by-1184 snapshot matrix, up to 576 cores, showed here.
+The plot shows how much time is spent in different steps of the execution. 
+
+<img src="./dymode_parallel_scaling.png" width="400" />
+
 
 ## Build dymode
 
@@ -87,10 +95,3 @@ Fill in the indicated macros in `Makefile` and run `make <target>` with one of t
 | `--modes` | `-m` | `1` | Specify how many modes are saved to disk. |
 | `--help` | `-h` | | When present, this flag terminates the execution of the program and displays help. |
 
-
-## Scaling
-
-Parallel scaling of dymode benchmarked on a 655360-by-1184 snapshot matrix, up to 576 cores. 
-The plot shows how much time is spent in different steps of the execution. 
-
-<img src="./dymode_parallel_scaling.png" width="400" />
